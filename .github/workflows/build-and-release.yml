@@ -1,0 +1,180 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Run tests
+        run: make test
+
+  build-cli:
+    name: Build CLI binaries
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build all platforms
+        run: make build-all
+
+      - name: Upload CLI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-binaries
+          path: dist/*
+
+  build-desktop:
+    name: Build Desktop (${{ matrix.platform }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+          - os: windows-latest
+            platform: windows
+            arch: amd64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install frontend dependencies
+        run: cd desktop/frontend && bun install
+
+      - name: Build desktop app (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          cd desktop
+          VERSION="${GITHUB_REF_NAME}"
+          COMMIT="${GITHUB_SHA::7}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          wails build -tags webkit2_41 -o aurora-desktop -ldflags "-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE"
+
+      - name: Build desktop app (macOS)
+        if: matrix.platform == 'darwin'
+        run: |
+          cd desktop
+          VERSION="${GITHUB_REF_NAME}"
+          COMMIT="${GITHUB_SHA::7}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          wails build -o aurora-desktop -ldflags "-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE"
+
+      - name: Build desktop app (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          cd desktop
+          VERSION="${GITHUB_REF_NAME}"
+          COMMIT="${GITHUB_SHA::7}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          wails build -o aurora-desktop.exe -ldflags "-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE"
+
+      - name: Create archive (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p dist-desktop
+          cp desktop/build/bin/aurora-desktop dist-desktop/aurora-desktop
+          cd dist-desktop
+          tar -czf aurora-desktop-linux-amd64.tar.gz aurora-desktop
+          rm aurora-desktop
+
+      - name: Create archive (macOS)
+        if: matrix.platform == 'darwin'
+        run: |
+          mkdir -p dist-desktop
+          ls -la desktop/build/bin/
+          cd desktop/build/bin
+          zip -r ../../../dist-desktop/aurora-desktop-darwin-arm64.zip *.app
+
+      - name: Create archive (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist-desktop
+          Copy-Item desktop/build/bin/aurora-desktop.exe dist-desktop/aurora-desktop.exe
+          Compress-Archive -Path dist-desktop/aurora-desktop.exe -DestinationPath dist-desktop/aurora-desktop-windows-amd64.zip
+          Remove-Item dist-desktop/aurora-desktop.exe
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist-desktop/*
+
+  release:
+    name: Create release
+    runs-on: ubuntu-latest
+    needs: [build-cli, build-desktop]
+
+    steps:
+      - name: Download CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-binaries
+          path: dist/
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: dist/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

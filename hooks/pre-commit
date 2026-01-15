@@ -1,0 +1,18 @@
+#!/bin/sh
+# Pre-commit hook to run go fmt before committing
+
+echo "Running go fmt..."
+make fmt
+
+# Check if any files were modified
+if ! git diff --quiet; then
+    echo ""
+    echo "✓ Code formatted successfully"
+    echo "  Formatted files have been staged automatically"
+    echo ""
+    
+    # Stage all formatted Go files
+    git add $(git diff --name-only --diff-filter=M | grep '\.go$')
+fi
+
+exit 0

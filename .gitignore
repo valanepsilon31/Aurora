@@ -1,0 +1,15 @@
+bin/
+dist/
+dist-desktop/
+.env
+backup.zip
+backup_*.zip
+.idea/
+config.json
+
+# Desktop app
+desktop/config.json
+desktop/frontend/node_modules/
+desktop/frontend/dist/
+desktop/frontend/wailsjs/
+desktop/build/bin/
