@@ -82,6 +82,9 @@ interface BackupValidation {
   totalSizeHuman: string
   estimatedSize: number
   estimatedSizeHuman: string
+  availableSpace: number
+  availableSpaceHuman: string
+  hasEnoughSpace: boolean
 }
 
 interface BackupResult {
@@ -694,7 +697,7 @@ function CollectionsTab({ collections, loading, expandedCollections, toggleColle
           <div className="stat-value">{collections.stats.usedDiskSizeHuman}/{collections.stats.totalDiskSizeHuman}</div>
           <div className="stat-label">
             Space Used/total
-            <span className="help-badge" data-tooltip="Disk space of used mods / all mods">?</span>
+            <span className="help-badge tooltip-left" data-tooltip="Disk space of used mods / all mods">?</span>
           </div>
         </div>
       </div>
@@ -801,14 +804,14 @@ function BackupTab({ backup, loading, backupRunning, runBackup }: BackupTabProps
           <div className="stat-value">{filteredCount}</div>
           <div className="stat-label">
             Filtered
-            <span className="help-badge" data-tooltip="Mods excluded by your filters">?</span>
+            <span className="help-badge tooltip-left" data-tooltip="Mods excluded by your filters">?</span>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-value">{backup.estimatedSizeHuman}</div>
+        <div className={`stat-card ${!backup.hasEnoughSpace ? 'stat-card-warning' : ''}`}>
+          <div className="stat-value">{backup.estimatedSizeHuman} / {backup.availableSpaceHuman}</div>
           <div className="stat-label">
-            Est. Size
-            <span className="help-badge" data-tooltip="Estimated compressed backup size (~25%)">?</span>
+            Est. / Available
+            <span className="help-badge tooltip-left" data-tooltip="Estimated backup size vs available disk space">?</span>
           </div>
         </div>
       </div>
@@ -844,9 +847,12 @@ function BackupTab({ backup, loading, backupRunning, runBackup }: BackupTabProps
           ))}
         </div>
         <div className="actions">
-          <button className="btn" onClick={runBackup} disabled={backupRunning || modsToBackup === 0}>
+          <button className="btn" onClick={runBackup} disabled={backupRunning || modsToBackup === 0 || !backup.hasEnoughSpace}>
             {backupRunning ? 'Running...' : `Backup ${modsToBackup} Mods`}
           </button>
+          {!backup.hasEnoughSpace && (
+            <span className="warning-text">Not enough disk space</span>
+          )}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ package aurora
 import (
 	"aurora/internal/repository"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -55,12 +56,29 @@ func (a *Aurora) ValidateBackup() BackupValidation {
 	}
 
 	estimated := uint64(float32(totalSize) * 0.25)
+
+	// Check available disk space in current working directory (where backup.zip is written)
+	// Require 5% extra margin to avoid running out of space
+	var availableSpace uint64
+	var hasEnoughSpace bool
+	cwd, err := os.Getwd()
+	if err == nil {
+		availableSpace, err = getDiskAvailable(cwd)
+		if err == nil {
+			requiredSpace := uint64(float64(estimated) * 1.05)
+			hasEnoughSpace = availableSpace >= requiredSpace
+		}
+	}
+
 	return BackupValidation{
-		Items:              items,
-		TotalSize:          totalSize,
-		TotalSizeHuman:     humanize.Bytes(totalSize),
-		EstimatedSize:      estimated,
-		EstimatedSizeHuman: humanize.Bytes(estimated),
+		Items:               items,
+		TotalSize:           totalSize,
+		TotalSizeHuman:      humanize.Bytes(totalSize),
+		EstimatedSize:       estimated,
+		EstimatedSizeHuman:  humanize.Bytes(estimated),
+		AvailableSpace:      availableSpace,
+		AvailableSpaceHuman: humanize.Bytes(availableSpace),
+		HasEnoughSpace:      hasEnoughSpace,
 	}
 }
 

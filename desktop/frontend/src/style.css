@@ -593,6 +593,21 @@ input[type="text"]::placeholder {
   gap: 0.35rem;
 }
 
+.stat-card-warning {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.stat-card-warning::before {
+  background: linear-gradient(135deg, var(--error) 0%, #f87171 100%);
+}
+
+.stat-card-warning .stat-value {
+  background: linear-gradient(135deg, var(--error) 0%, #f87171 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
 /* Help badge with tooltip */
 .help-badge {
   display: inline-flex;
@@ -615,6 +630,12 @@ input[type="text"]::placeholder {
 .help-badge:hover {
   color: var(--text-primary);
   border-color: var(--accent-primary);
+  position: relative;
+  z-index: 10000;
+}
+
+.stat-card:has(.help-badge:hover) {
+  z-index: 100;
 }
 
 .help-badge::after {
@@ -642,6 +663,16 @@ input[type="text"]::placeholder {
 .help-badge:hover::after {
   opacity: 1;
   visibility: visible;
+}
+
+/* Tooltip positioned to the left */
+.help-badge.tooltip-left::after {
+  left: auto;
+  right: calc(100% + 10px);
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: right;
 }
 
 /* Tooltip positioned to the right with multiline support */
@@ -868,6 +899,13 @@ input[type="text"]::placeholder {
   display: flex;
   gap: 0.75rem;
   margin-top: 0.75rem;
+  align-items: center;
+}
+
+.warning-text {
+  color: var(--error);
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 /* Filter management */

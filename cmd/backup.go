@@ -63,9 +63,16 @@ func runBackupCmd(cmd *cobra.Command, args []string) {
 	table.Bulk(data[1:])
 	table.Render()
 
+	fmt.Printf("Total initial size: %s\n", validation.TotalSizeHuman)
+	fmt.Printf("Backup size: %s (estimated)\n", validation.EstimatedSizeHuman)
+	fmt.Printf("Available disk space: %s\n", validation.AvailableSpaceHuman)
+
 	if validate {
-		fmt.Printf("Total initial size: %s\n", validation.TotalSizeHuman)
-		fmt.Printf("Backup size: %s (estimated)\n", validation.EstimatedSizeHuman)
+		return
+	}
+
+	if !validation.HasEnoughSpace {
+		fmt.Fprintf(os.Stderr, "Error: Not enough disk space for backup\n")
 		return
 	}
 

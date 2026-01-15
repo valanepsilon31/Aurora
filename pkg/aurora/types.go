@@ -60,11 +60,14 @@ type BackupItem struct {
 
 // BackupValidation represents the backup preview
 type BackupValidation struct {
-	Items              []BackupItem `json:"items"`
-	TotalSize          uint64       `json:"totalSize"`
-	TotalSizeHuman     string       `json:"totalSizeHuman"`
-	EstimatedSize      uint64       `json:"estimatedSize"`
-	EstimatedSizeHuman string       `json:"estimatedSizeHuman"`
+	Items               []BackupItem `json:"items"`
+	TotalSize           uint64       `json:"totalSize"`
+	TotalSizeHuman      string       `json:"totalSizeHuman"`
+	EstimatedSize       uint64       `json:"estimatedSize"`
+	EstimatedSizeHuman  string       `json:"estimatedSizeHuman"`
+	AvailableSpace      uint64       `json:"availableSpace"`
+	AvailableSpaceHuman string       `json:"availableSpaceHuman"`
+	HasEnoughSpace      bool         `json:"hasEnoughSpace"`
 }
 
 // BackupProgress represents backup progress updates

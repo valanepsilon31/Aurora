@@ -6,6 +6,7 @@ backup.zip
 backup_*.zip
 .idea/
 config.json
+AGENT.md
 
 # Desktop app
 desktop/config.json
