@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/valanepsilon31/Aurora?style=for-the-badge)](https://github.com/valanepsilon31/Aurora/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/valanepsilon31/Aurora/build-and-release.yml?style=for-the-badge)](https://github.com/valanepsilon31/Aurora/actions)
-[![License](https://img.shields.io/github/license/valanepsilon31/Aurora?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 [![Ko-Fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/valara9930)
 
 
