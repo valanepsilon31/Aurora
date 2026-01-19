@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 )
 
 type PenumbraRepository struct {
@@ -99,18 +98,18 @@ func loadSortOrder(config *config.Config) []PenumbraMod {
 	mods := make([]PenumbraMod, 0, len(sortOrder.Data))
 	seen := make(map[string]bool)
 	for path, name := range sortOrder.Data {
-		parts := strings.Split(name, "/")
-		splittedName := parts[len(parts)-1]
+		// Use filepath.Base to handle both / and \ separators
+		modName := filepath.Base(name)
 		// Skip duplicates by name
-		if seen[splittedName] {
+		if seen[modName] {
 			continue
 		}
-		size, err := getModSize(filepath.Join(config.Mods.Path, splittedName))
+		size, err := getModSize(filepath.Join(config.Mods.Path, modName))
 		if err != nil || size == 0 {
 			continue
 		}
-		seen[splittedName] = true
-		mods = append(mods, PenumbraMod{Name: splittedName, Path: path, Size: size})
+		seen[modName] = true
+		mods = append(mods, PenumbraMod{Name: modName, Path: path, Size: size})
 	}
 
 	slices.SortFunc(mods, func(a, b PenumbraMod) int {
