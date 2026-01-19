@@ -625,6 +625,7 @@ input[type="text"]::placeholder {
   position: relative;
   text-transform: none;
   letter-spacing: 0;
+  margin-left: 0.4rem;
 }
 
 .help-badge:hover {

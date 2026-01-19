@@ -537,7 +537,7 @@ function ConfigTab({
             <div className="field">
               <span className="field-label">
                 Concurrency
-                <span className="help-badge tooltip-right" data-tooltip="Number of parallel threads for backup compression.&#10;&#10;0 = auto (uses all CPU cores).&#10;Higher values split the backup into multiple files.&#10;&#10;Warning: 0 (auto) will use all CPU cores and may&#10;slow down your machine significantly during backup.">?</span>
+                <span className="help-badge tooltip-right" data-tooltip="Number of parallel threads for backup compression.&#10;&#10;0 = auto (uses all CPU cores).&#10;Warning: may slow down your machine significantly during backup.">?</span>
               </span>
               <span className="field-value">
                 <input
