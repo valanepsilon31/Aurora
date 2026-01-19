@@ -2,7 +2,6 @@ package aurora
 
 // ConfigResult represents the current configuration state
 type ConfigResult struct {
-	ConfigFile   string       `json:"configFile"`
 	PenumbraPath string       `json:"penumbraPath"`
 	ModsPath     string       `json:"modsPath"`
 	Filters      []string     `json:"filters"`

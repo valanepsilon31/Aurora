@@ -31,7 +31,6 @@ func NewWithReset(reset bool) *Aurora {
 func (a *Aurora) GetConfig() ConfigResult {
 	status := a.cfg.Status()
 	return ConfigResult{
-		ConfigFile:   a.cfg.ConfigFile,
 		PenumbraPath: a.cfg.Penumbra.Path,
 		ModsPath:     a.cfg.Mods.Path,
 		Filters:      a.cfg.Filters,

@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 )
 
-const configFile = "config.json"
+const ConfigFile = "config.json"
 
 type Config struct {
 	ConfigFile  string
@@ -39,7 +39,7 @@ func NewConfig(reset bool) *Config {
 	createIfMissing(reset)
 	var config Config
 
-	contentBytes, err := os.ReadFile(configFile)
+	contentBytes, err := os.ReadFile(ConfigFile)
 	if err != nil {
 		log.Fatalf("Failed to read config file: %v", err)
 	}
@@ -52,7 +52,7 @@ func NewConfig(reset bool) *Config {
 		log.Fatalf("Failed to parse config file: %v", err)
 	}
 
-	config.ConfigFile = configFile
+	config.ConfigFile = ConfigFile
 	return &config
 }
 
@@ -61,7 +61,7 @@ func createIfMissing(reset bool) {
 	if err != nil {
 		currentUser = &user.User{Username: "<user>"}
 	}
-	if _, err := os.Stat(configFile); errors.Is(err, os.ErrNotExist) || reset {
+	if _, err := os.Stat(ConfigFile); errors.Is(err, os.ErrNotExist) || reset {
 		config := Config{
 			Penumbra: PenumbraConfig{
 				Path: fmt.Sprintf("C:\\Users\\%s\\AppData\\roaming\\XIVLauncher\\pluginsConfig\\Penumbra", currentUser.Username),
@@ -108,7 +108,7 @@ func (c *Config) Status() ConfigStatus {
 }
 
 func (c *Config) Save() {
-	file, err := os.Create(configFile)
+	file, err := os.Create(ConfigFile)
 	if err != nil {
 		log.Fatalf("Failed to create config file: %v", err)
 	}

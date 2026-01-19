@@ -1,6 +1,7 @@
 package main
 
 import (
+	"aurora/internal/config"
 	"aurora/pkg/aurora"
 	"fmt"
 	"os"
@@ -48,7 +49,7 @@ func runConfigCmd(cmd *cobra.Command, args []string) {
 	table.Render()
 
 	if !cfg.Status.Valid {
-		fmt.Printf("Current configuration is not valid\nPlease either:\n- run: aurora config --reset\n- edit the config file: %s\n", cfg.ConfigFile)
+		fmt.Printf("Current configuration is not valid\nPlease either:\n- run: aurora config --reset\n- edit the config file: %s\n", config.ConfigFile)
 	} else {
 		fmt.Printf("Current configuration is valid\n")
 	}

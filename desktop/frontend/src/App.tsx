@@ -28,7 +28,6 @@ declare global {
 }
 
 interface ConfigResult {
-  configFile: string
   penumbraPath: string
   modsPath: string
   filters: string[]
@@ -515,10 +514,6 @@ function ConfigTab({
           </>
         ) : (
           <>
-            <div className="field">
-              <span className="field-label">Config File</span>
-              <span className="field-value">{config?.configFile}</span>
-            </div>
             <div className="field">
               <span className="field-label">Penumbra Path</span>
               <span className="field-value">{config?.penumbraPath || '(not set)'}</span>
