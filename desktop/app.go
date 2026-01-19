@@ -116,7 +116,7 @@ func (a *App) RunBackup(threads int) (*aurora.BackupResult, error) {
 	})
 
 	opts := &compress.Options{
-		OutputPath:   "backup.zip",
+		OutputPath:   aurora.BackupOutputPath,
 		Files:        folders,
 		MaxThreads:   threads,
 		Level:        9,

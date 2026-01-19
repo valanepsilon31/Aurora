@@ -4,6 +4,9 @@ dist-desktop/
 .env
 backup.zip
 backup_*.zip
+backup_part.zip
+backup_part_*.zip
+TODO.md
 .idea/
 config.json
 AGENT.md

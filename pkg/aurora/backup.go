@@ -11,6 +11,9 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+// BackupOutputPath is the base filename for backup archives
+const BackupOutputPath = "backup_part.zip"
+
 // ValidateBackup returns a preview of what will be backed up
 func (a *Aurora) ValidateBackup() BackupValidation {
 	repo := repository.NewPenumbraRepository(a.cfg)
@@ -119,7 +122,7 @@ func (a *Aurora) RunBackup(threads int, progressCb func(BackupProgress)) (*Backu
 	}
 
 	opts := &compress.Options{
-		OutputPath:   "backup.zip",
+		OutputPath:   BackupOutputPath,
 		Files:        folders,
 		MaxThreads:   threads,
 		Level:        9,

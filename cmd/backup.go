@@ -88,7 +88,7 @@ func runBackupCmd(cmd *cobra.Command, args []string) {
 	}
 
 	opts := &compress.Options{
-		OutputPath:   "backup.zip",
+		OutputPath:   aurora.BackupOutputPath,
 		Files:        folders,
 		MaxThreads:   thread,
 		Level:        9,
