@@ -5,10 +5,8 @@ import (
 	"aurora/internal/util"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
-	"os/user"
 	"path/filepath"
 )
 
@@ -58,14 +56,14 @@ func NewConfig(reset bool) *Config {
 }
 
 func createIfMissing(reset bool) {
-	currentUser, err := user.Current()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		currentUser = &user.User{Username: "<user>"}
+		homeDir = "C:\\Users\\<user>"
 	}
 	if _, err := os.Stat(ConfigFile); errors.Is(err, os.ErrNotExist) || reset {
 		config := Config{
 			Penumbra: PenumbraConfig{
-				Path: fmt.Sprintf("C:\\Users\\%s\\AppData\\roaming\\XIVLauncher\\pluginsConfig\\Penumbra", currentUser.Username),
+				Path: filepath.Join(homeDir, "AppData", "Roaming", "XIVLauncher", "pluginConfigs", "Penumbra"),
 			},
 			Mods: ModsConfig{
 				Path: "",

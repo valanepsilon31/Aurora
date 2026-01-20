@@ -187,12 +187,36 @@ func (a *App) RunBackup(threads int) (*aurora.BackupResult, error) {
 		Done:    true,
 	})
 
+	// Find actual output files created
+	outputDisplay := findBackupOutputFiles()
+
 	backupResult := &aurora.BackupResult{
-		OutputPath:     opts.OutputPath,
+		OutputPath:     outputDisplay,
 		OriginalSize:   result.OriginalSize,
 		CompressedSize: result.CompressedSize,
 		Ratio:          fmt.Sprintf("%.1f%%", float64(result.CompressedSize)/float64(result.OriginalSize)*100),
 	}
 	logger.Info("Backup completed: output=%s, ratio=%s", backupResult.OutputPath, backupResult.Ratio)
 	return backupResult, nil
+}
+
+// findBackupOutputFiles finds the backup files created and returns a display string
+func findBackupOutputFiles() string {
+	// Check for multi-part files first (backup_part_01.zip, etc.)
+	pattern := "backup_part_*.zip"
+	matches, err := filepath.Glob(pattern)
+	if err == nil && len(matches) > 0 {
+		if len(matches) == 1 {
+			return filepath.Base(matches[0])
+		}
+		// Multiple files: show range
+		return fmt.Sprintf("backup_part_01.zip ... backup_part_%02d.zip", len(matches))
+	}
+
+	// Fall back to single file
+	if _, err := os.Stat(aurora.BackupOutputPath); err == nil {
+		return aurora.BackupOutputPath
+	}
+
+	return aurora.BackupOutputPath
 }
