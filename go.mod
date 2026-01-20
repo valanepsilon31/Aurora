@@ -8,6 +8,7 @@ require (
 	github.com/olekukonko/tablewriter v1.1.0
 	github.com/spf13/cobra v1.10.2
 	github.com/wailsapp/wails/v2 v2.11.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (

@@ -1,6 +1,7 @@
 package aurora
 
 import (
+	"aurora/internal/logger"
 	"aurora/internal/repository"
 	"os"
 	"path/filepath"
@@ -89,7 +90,7 @@ func (a *Aurora) ValidateBackup() BackupValidation {
 		}
 	}
 
-	return BackupValidation{
+	validation := BackupValidation{
 		Items:               items,
 		TotalSize:           totalSize,
 		TotalSizeHuman:      humanize.Bytes(totalSize),
@@ -99,6 +100,12 @@ func (a *Aurora) ValidateBackup() BackupValidation {
 		AvailableSpaceHuman: humanize.Bytes(availableSpace),
 		HasEnoughSpace:      hasEnoughSpace,
 	}
+
+	logger.Info("Backup validation: %d items, total=%s, estimated=%s, available=%s, hasSpace=%v",
+		len(items), validation.TotalSizeHuman, validation.EstimatedSizeHuman,
+		validation.AvailableSpaceHuman, validation.HasEnoughSpace)
+
+	return validation
 }
 
 // GetBackupFolders returns the list of mod folders that should be backed up
@@ -111,12 +118,15 @@ func (a *Aurora) GetBackupFolders() []string {
 			continue
 		}
 
-		filtered, _ := isModFiltered(&mod, a.cfg.Filters)
-		if !filtered {
+		filtered, filterName := isModFiltered(&mod, a.cfg.Filters)
+		if filtered {
+			logger.Info("Mod filtered: %s (by %s)", mod.Name, filterName)
+		} else {
 			file := filepath.Join(a.cfg.Mods.Path, mod.Name)
 			folders = append(folders, file)
 		}
 	}
 
+	logger.Info("GetBackupFolders: %d folders to backup", len(folders))
 	return folders
 }

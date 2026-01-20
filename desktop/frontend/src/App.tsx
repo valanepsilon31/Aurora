@@ -523,23 +523,21 @@ function ConfigTab({
         ) : (
           <>
             <div className="field">
-              <span className="field-label">Penumbra Path</span>
-              <span className="field-value">{config?.penumbraPath || '(not set)'}</span>
-            </div>
-            <div className="field">
-              <span className="field-label">Penumbra Status</span>
-              <span className={`field-value ${config?.status.penumbraStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
-                {config?.status.penumbraStatus}
+              <span className="field-label">Penumbra</span>
+              <span className="field-value field-with-status">
+                <span className="field-path">{config?.penumbraPath || '(not set)'}</span>
+                <span className={`field-status ${config?.status.penumbraStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
+                  {config?.status.penumbraStatus}
+                </span>
               </span>
             </div>
             <div className="field">
-              <span className="field-label">Mods Path</span>
-              <span className="field-value">{config?.modsPath || '(not set)'}</span>
-            </div>
-            <div className="field">
-              <span className="field-label">Mods Status</span>
-              <span className={`field-value ${config?.status.modsStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
-                {config?.status.modsStatus}
+              <span className="field-label">Mods</span>
+              <span className="field-value field-with-status">
+                <span className="field-path">{config?.modsPath || '(not set)'}</span>
+                <span className={`field-status ${config?.status.modsStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
+                  {config?.status.modsStatus}
+                </span>
               </span>
             </div>
             <div className="field">
@@ -574,7 +572,7 @@ function ConfigTab({
       {config?.status.valid && (
         <div className="card card-filters">
           <h2>Backup Filters</h2>
-          <p className="filter-hint">Mods matching these patterns will be excluded from backups</p>
+          <p className="filter-hint">Mods and collections matching these patterns will be excluded from backups</p>
 
           <div className="filter-add">
             <input

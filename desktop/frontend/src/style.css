@@ -295,6 +295,22 @@ body {
   font-size: 0.85rem;
 }
 
+.field-with-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.field-path {
+  word-break: break-all;
+}
+
+.field-status {
+  font-size: 0.75rem;
+  font-family: inherit;
+}
+
 .status-ok {
   color: var(--success);
   display: flex;

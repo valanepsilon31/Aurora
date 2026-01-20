@@ -2,6 +2,7 @@ package repository
 
 import (
 	"aurora/internal/config"
+	"aurora/internal/logger"
 	"aurora/internal/util"
 	"io/fs"
 	"log"
@@ -92,6 +93,7 @@ func loadSortOrder(config *config.Config) []PenumbraMod {
 
 	sortOrder, err := LoadSortOrder(path)
 	if err != nil {
+		logger.Error("Failed to load sort_order.json: %v", err)
 		log.Fatalf("Failed to load sort_order.json: %v", err)
 	}
 
@@ -102,10 +104,17 @@ func loadSortOrder(config *config.Config) []PenumbraMod {
 		modName := filepath.Base(name)
 		// Skip duplicates by name
 		if seen[modName] {
+			logger.Warn("Skipping duplicate mod: %s", modName)
 			continue
 		}
-		size, err := getModSize(filepath.Join(config.Mods.Path, modName))
-		if err != nil || size == 0 {
+		modFullPath := filepath.Join(config.Mods.Path, modName)
+		size, err := getModSize(modFullPath)
+		if err != nil {
+			logger.Warn("Failed to get mod size for %s: %v", modName, err)
+			continue
+		}
+		if size == 0 {
+			logger.Info("Skipping mod with size 0: %s", modName)
 			continue
 		}
 		seen[modName] = true
@@ -128,6 +137,7 @@ func loadCollections(mods []PenumbraMod, config *config.Config) []PenumbraCollec
 	path := filepath.Join(config.Penumbra.Path, collectionsFolder)
 	entries, err := os.ReadDir(path)
 	if err != nil {
+		logger.Error("Failed to read penumbra collections folder: %v", err)
 		log.Fatalf("Failed to read penumbra collections folder: %v", err)
 	}
 
@@ -137,7 +147,7 @@ func loadCollections(mods []PenumbraMod, config *config.Config) []PenumbraCollec
 			filePath := filepath.Join(path, entry.Name())
 			var rawCollection collection
 			if err := util.ReadJSONFile(filePath, &rawCollection); err != nil {
-				log.Printf("Failed to read penumbra collection file: %s: %v", entry.Name(), err)
+				logger.Warn("Failed to read penumbra collection file %s: %v", entry.Name(), err)
 				continue
 			}
 
@@ -172,14 +182,14 @@ func getModSize(root string) (uint64, error) {
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			// Skip entries we can't access (e.g., permission denied)
+			logger.Warn("Cannot access path %s: %v", path, err)
 			return nil
 		}
 		if !d.IsDir() {
-			// Get file info for size
 			info, err := d.Info()
 			if err != nil {
-				return nil // Skip files with errors
+				logger.Warn("Cannot get file info for %s: %v", path, err)
+				return nil
 			}
 			size += uint64(info.Size())
 		}

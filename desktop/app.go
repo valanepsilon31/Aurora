@@ -1,6 +1,7 @@
 package main
 
 import (
+	"aurora/internal/logger"
 	"aurora/pkg/aurora"
 	"context"
 	"fmt"
@@ -31,6 +32,8 @@ func (a *App) GetVersion() string {
 // startup is called when the app starts
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	logger.Init(logger.GetLogPath())
+	logger.Info("Aurora desktop app starting, version=%s", a.version)
 	a.aurora = aurora.New()
 }
 
@@ -104,8 +107,10 @@ type BackupProgressEvent struct {
 
 // RunBackup executes the backup operation with progress events
 func (a *App) RunBackup(threads int) (*aurora.BackupResult, error) {
+	logger.Info("RunBackup started with threads=%d", threads)
 	folders := a.aurora.GetBackupFolders()
 	if len(folders) == 0 {
+		logger.Warn("RunBackup: no mods to backup")
 		return nil, fmt.Errorf("no mods to backup")
 	}
 
@@ -165,6 +170,7 @@ func (a *App) RunBackup(threads int) (*aurora.BackupResult, error) {
 	result, err := compress.Compress(opts, progressCb)
 
 	if err != nil {
+		logger.Error("Backup failed: %v", err)
 		runtime.EventsEmit(a.ctx, "backup:progress", BackupProgressEvent{
 			Percent: 0,
 			Current: "",
@@ -181,10 +187,12 @@ func (a *App) RunBackup(threads int) (*aurora.BackupResult, error) {
 		Done:    true,
 	})
 
-	return &aurora.BackupResult{
+	backupResult := &aurora.BackupResult{
 		OutputPath:     opts.OutputPath,
 		OriginalSize:   result.OriginalSize,
 		CompressedSize: result.CompressedSize,
 		Ratio:          fmt.Sprintf("%.1f%%", float64(result.CompressedSize)/float64(result.OriginalSize)*100),
-	}, nil
+	}
+	logger.Info("Backup completed: output=%s, ratio=%s", backupResult.OutputPath, backupResult.Ratio)
+	return backupResult, nil
 }

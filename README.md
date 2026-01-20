@@ -79,6 +79,12 @@ aurora backup --threads 4
 
 ---
 
+## Troubleshooting
+
+If something isn't working correctly, check the `aurora.log` file located next to the executable. It contains detailed information about what Aurora is doing and any errors that occur.
+
+---
+
 ## License
 
 MIT
