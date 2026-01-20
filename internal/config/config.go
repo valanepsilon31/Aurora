@@ -131,8 +131,7 @@ func hasMatchingMod(sortOrderPath, modsPath string) bool {
 		return false
 	}
 
-	for _, name := range data.Data {
-		modName := filepath.Base(name)
+	for modName := range data.Data {
 		modPath := filepath.Join(modsPath, modName)
 		if info, err := os.Stat(modPath); err == nil && info.IsDir() {
 			return true

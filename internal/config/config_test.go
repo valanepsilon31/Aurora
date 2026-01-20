@@ -10,11 +10,11 @@ func TestHasMatchingMod(t *testing.T) {
 	t.Run("matching mod exists", func(t *testing.T) {
 		dir := t.TempDir()
 
-		// Create sort_order.json
+		// Create sort_order.json - keys are folder names, values are penumbra display names
 		sortOrderPath := filepath.Join(dir, "sort_order.json")
-		os.WriteFile(sortOrderPath, []byte(`{"Data": {"path1": "ModA", "path2": "ModB"}}`), 0644)
+		os.WriteFile(sortOrderPath, []byte(`{"Data": {"ModA": "Display Name A", "ModB": "Display Name B"}}`), 0644)
 
-		// Create mods directory with one matching mod
+		// Create mods directory with one matching mod (matches key, not value)
 		modsPath := filepath.Join(dir, "mods")
 		os.MkdirAll(filepath.Join(modsPath, "ModA"), 0755)
 
@@ -28,9 +28,9 @@ func TestHasMatchingMod(t *testing.T) {
 	t.Run("no matching mods", func(t *testing.T) {
 		dir := t.TempDir()
 
-		// Create sort_order.json
+		// Create sort_order.json - keys are folder names
 		sortOrderPath := filepath.Join(dir, "sort_order.json")
-		os.WriteFile(sortOrderPath, []byte(`{"Data": {"path1": "ModA", "path2": "ModB"}}`), 0644)
+		os.WriteFile(sortOrderPath, []byte(`{"Data": {"ModA": "Display Name A", "ModB": "Display Name B"}}`), 0644)
 
 		// Create empty mods directory
 		modsPath := filepath.Join(dir, "mods")
@@ -52,21 +52,21 @@ func TestHasMatchingMod(t *testing.T) {
 		}
 	})
 
-	t.Run("mod path with subdirectory", func(t *testing.T) {
+	t.Run("key is used as folder name directly", func(t *testing.T) {
 		dir := t.TempDir()
 
-		// Create sort_order.json with nested path (like "folder/ModName")
+		// Create sort_order.json - key is the folder name, value is ignored
 		sortOrderPath := filepath.Join(dir, "sort_order.json")
-		os.WriteFile(sortOrderPath, []byte(`{"Data": {"path1": "subfolder/ModA"}}`), 0644)
+		os.WriteFile(sortOrderPath, []byte(`{"Data": {"ActualFolder": "Some Display Name"}}`), 0644)
 
-		// Create mods directory - filepath.Base should extract "ModA"
+		// Create mods directory with folder matching the key
 		modsPath := filepath.Join(dir, "mods")
-		os.MkdirAll(filepath.Join(modsPath, "ModA"), 0755)
+		os.MkdirAll(filepath.Join(modsPath, "ActualFolder"), 0755)
 
 		result := hasMatchingMod(sortOrderPath, modsPath)
 
 		if !result {
-			t.Error("expected true when mod exists (extracted via filepath.Base)")
+			t.Error("expected true when mod folder matches key")
 		}
 	})
 
@@ -74,7 +74,7 @@ func TestHasMatchingMod(t *testing.T) {
 		dir := t.TempDir()
 
 		sortOrderPath := filepath.Join(dir, "sort_order.json")
-		os.WriteFile(sortOrderPath, []byte(`{"Data": {"path1": "ModA"}}`), 0644)
+		os.WriteFile(sortOrderPath, []byte(`{"Data": {"ModA": "Display Name"}}`), 0644)
 
 		modsPath := filepath.Join(dir, "mods")
 		os.MkdirAll(modsPath, 0755)
@@ -153,10 +153,10 @@ func TestConfigStatus(t *testing.T) {
 		// Setup penumbra path
 		penumbraPath := filepath.Join(dir, "penumbra")
 		os.MkdirAll(penumbraPath, 0755)
-		os.WriteFile(filepath.Join(penumbraPath, "sort_order.json"), []byte(`{"Data":{"p1":"ModA"}}`), 0644)
+		os.WriteFile(filepath.Join(penumbraPath, "sort_order.json"), []byte(`{"Data":{"ModA":"Display Name A"}}`), 0644)
 		os.MkdirAll(filepath.Join(penumbraPath, "collections"), 0755)
 
-		// Setup mods path with matching mod
+		// Setup mods path with matching mod (matches key, not value)
 		modsPath := filepath.Join(dir, "mods")
 		os.MkdirAll(filepath.Join(modsPath, "ModA"), 0755)
 
@@ -178,7 +178,7 @@ func TestConfigStatus(t *testing.T) {
 		// Setup penumbra path
 		penumbraPath := filepath.Join(dir, "penumbra")
 		os.MkdirAll(penumbraPath, 0755)
-		os.WriteFile(filepath.Join(penumbraPath, "sort_order.json"), []byte(`{"Data":{"p1":"ModA"}}`), 0644)
+		os.WriteFile(filepath.Join(penumbraPath, "sort_order.json"), []byte(`{"Data":{"ModA":"Display Name A"}}`), 0644)
 		os.MkdirAll(filepath.Join(penumbraPath, "collections"), 0755)
 
 		// Setup empty mods path
