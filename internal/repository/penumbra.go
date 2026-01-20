@@ -99,10 +99,9 @@ func loadSortOrder(config *config.Config) []PenumbraMod {
 
 	mods := make([]PenumbraMod, 0, len(sortOrder.Data))
 	seen := make(map[string]bool)
-	for modPath, name := range sortOrder.Data {
-		// Use filepath.Base to handle both / and \ separators
-		modName := filepath.Base(name)
-		// Skip duplicates by name
+	for modName, penumbraPath := range sortOrder.Data {
+		// Key (modName) is the filesystem folder name
+		// Value (penumbraPath) is Penumbra's internal path (may contain special chars)
 		if seen[modName] {
 			logger.Warn("Skipping duplicate mod: %s", modName)
 			continue
@@ -118,7 +117,7 @@ func loadSortOrder(config *config.Config) []PenumbraMod {
 			continue
 		}
 		seen[modName] = true
-		mods = append(mods, PenumbraMod{Name: modName, Path: modPath, Size: size})
+		mods = append(mods, PenumbraMod{Name: modName, Path: penumbraPath, Size: size})
 	}
 
 	slices.SortFunc(mods, func(a, b PenumbraMod) int {

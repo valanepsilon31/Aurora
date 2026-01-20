@@ -28,6 +28,12 @@ func TestCommandFlagsIsolation(t *testing.T) {
 			flags:    []string{"reset"},
 			badFlags: []string{"validate", "thread"}, // belongs to backup command
 		},
+		{
+			name:     "penumbra command flags",
+			cmd:      penumbraCmd,
+			flags:    []string{},                     // penumbra has no flags
+			badFlags: []string{"reset", "validate"}, // belongs to other commands
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,5 +120,21 @@ func TestConfigFlagAccess(t *testing.T) {
 	_, err = cmd.Flags().GetBool("validate")
 	if err == nil {
 		t.Error("config command should NOT be able to access 'validate' flag (belongs to backup)")
+	}
+}
+
+// TestPenumbraFlagAccess tests penumbra command flag access
+func TestPenumbraFlagAccess(t *testing.T) {
+	cmd := penumbraCmd
+
+	// These should fail - belongs to other commands
+	_, err := cmd.Flags().GetBool("reset")
+	if err == nil {
+		t.Error("penumbra command should NOT be able to access 'reset' flag (belongs to config)")
+	}
+
+	_, err = cmd.Flags().GetBool("validate")
+	if err == nil {
+		t.Error("penumbra command should NOT be able to access 'validate' flag (belongs to backup)")
 	}
 }

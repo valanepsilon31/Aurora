@@ -21,7 +21,11 @@ var penumbraCmd = &cobra.Command{
 func runPenumbraCmd(cmd *cobra.Command, args []string) {
 	app := aurora.New()
 	if !app.IsConfigValid() {
-		runConfigCmd(cmd, nil)
+		cfg := app.GetConfig()
+		fmt.Fprintf(os.Stderr, "Configuration is not valid:\n")
+		fmt.Fprintf(os.Stderr, "  Penumbra: %s\n", cfg.Status.PenumbraStatus)
+		fmt.Fprintf(os.Stderr, "  Mods: %s\n", cfg.Status.ModsStatus)
+		fmt.Fprintf(os.Stderr, "\nRun 'aurora config --reset' to fix\n")
 		return
 	}
 
