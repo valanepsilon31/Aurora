@@ -1,7 +1,7 @@
 package config
 
 import (
-	"bytes"
+	"aurora/internal/util"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +14,6 @@ import (
 const ConfigFile = "config.json"
 
 type Config struct {
-	ConfigFile  string
 	Penumbra    PenumbraConfig
 	Mods        ModsConfig
 	Filters     []string `json:"filters"`
@@ -39,20 +38,10 @@ func NewConfig(reset bool) *Config {
 	createIfMissing(reset)
 	var config Config
 
-	contentBytes, err := os.ReadFile(ConfigFile)
-	if err != nil {
+	if err := util.ReadJSONFile(ConfigFile, &config); err != nil {
 		log.Fatalf("Failed to read config file: %v", err)
 	}
 
-	// strip BOM if present
-	contentBytes = bytes.TrimPrefix(contentBytes, []byte("\xEF\xBB\xBF"))
-
-	err = json.Unmarshal(contentBytes, &config)
-	if err != nil {
-		log.Fatalf("Failed to parse config file: %v", err)
-	}
-
-	config.ConfigFile = ConfigFile
 	return &config
 }
 
@@ -80,12 +69,14 @@ func (c *Config) Status() ConfigStatus {
 		Penumbra: "OK",
 		Mods:     "OK",
 	}
+
+	sortOrderJsonPath := filepath.Join(c.Penumbra.Path, "sort_order.json")
+
 	fileInfo, err := os.Stat(c.Penumbra.Path)
 	if err != nil || !fileInfo.IsDir() {
 		status.Penumbra = "Invalid Penumbra path"
 		status.Valid = false
 	} else {
-		sortOrderJsonPath := filepath.Join(c.Penumbra.Path, "sort_order.json")
 		fileInfo, err = os.Stat(sortOrderJsonPath)
 		if err != nil {
 			status.Penumbra = "sort_order.json not found in Penumbra path"
@@ -99,12 +90,40 @@ func (c *Config) Status() ConfigStatus {
 			}
 		}
 	}
+
 	fileInfo, err = os.Stat(c.Mods.Path)
 	if err != nil || !fileInfo.IsDir() {
 		status.Mods = "Invalid Mods path"
 		status.Valid = false
+	} else if status.Penumbra == "OK" {
+		// Both paths are valid, check if at least one mod from Penumbra exists in Mods folder
+		if !hasMatchingMod(sortOrderJsonPath, c.Mods.Path) {
+			status.Mods = "No mods from Penumbra found in Mods folder"
+			status.Valid = false
+		}
 	}
+
 	return status
+}
+
+// hasMatchingMod checks if at least one mod from sort_order.json exists in the mods folder
+func hasMatchingMod(sortOrderPath, modsPath string) bool {
+	var data struct {
+		Data map[string]string `json:"Data"`
+	}
+	if err := util.ReadJSONFile(sortOrderPath, &data); err != nil {
+		return false
+	}
+
+	for _, name := range data.Data {
+		modName := filepath.Base(name)
+		modPath := filepath.Join(modsPath, modName)
+		if info, err := os.Stat(modPath); err == nil && info.IsDir() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *Config) Save() {

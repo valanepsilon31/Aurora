@@ -7,6 +7,7 @@ declare global {
       main: {
         App: {
           GetConfig: () => Promise<ConfigResult>
+          ReloadConfig: () => Promise<ConfigResult>
           UpdateConfig: (penumbraPath: string, modsPath: string) => Promise<void>
           IsConfigValid: () => Promise<boolean>
           AddFilter: (filter: string) => Promise<void>
@@ -155,14 +156,21 @@ function App() {
     }
   }, [activeTab, config?.status.valid])
 
-  const loadConfig = async () => {
+  const loadConfig = async (reload = false) => {
     try {
       setLoading(true)
       setError(null)
-      const cfg = await window.go.main.App.GetConfig()
+      const cfg = reload
+        ? await window.go.main.App.ReloadConfig()
+        : await window.go.main.App.GetConfig()
       setConfig(cfg)
       setPenumbraPath(cfg.penumbraPath)
       setModsPath(cfg.modsPath)
+      // Clear collections cache when config changes to force refresh
+      if (reload) {
+        setCollections(null)
+        setBackup(null)
+      }
     } catch (err) {
       setError(`Failed to load config: ${err}`)
     } finally {
@@ -175,7 +183,7 @@ function App() {
       setLoading(true)
       setError(null)
       await window.go.main.App.UpdateConfig(penumbraPath, modsPath)
-      await loadConfig()
+      await loadConfig(true) // Reload from disk after save
       setIsEditing(false)
     } catch (err) {
       setError(`Failed to save config: ${err}`)
@@ -353,20 +361,20 @@ function App() {
             setModsPath={setModsPath}
             setIsEditing={setIsEditing}
             saveConfig={saveConfig}
-            loadConfig={loadConfig}
+            reloadConfig={() => loadConfig(true)}
             addFilter={async (filter) => {
               await window.go.main.App.AddFilter(filter)
-              await loadConfig()
+              await loadConfig(true)
               setBackup(null)
             }}
             removeFilter={async (filter) => {
               await window.go.main.App.RemoveFilter(filter)
-              await loadConfig()
+              await loadConfig(true)
               setBackup(null)
             }}
             setConcurrency={async (concurrency) => {
               await window.go.main.App.SetConcurrency(concurrency)
-              await loadConfig()
+              await loadConfig(true)
             }}
           />
         )}
@@ -404,7 +412,7 @@ interface ConfigTabProps {
   setModsPath: (path: string) => void
   setIsEditing: (editing: boolean) => void
   saveConfig: () => void
-  loadConfig: () => void
+  reloadConfig: () => void
   addFilter: (filter: string) => Promise<void>
   removeFilter: (filter: string) => Promise<void>
   setConcurrency: (concurrency: number) => Promise<void>
@@ -421,7 +429,7 @@ function ConfigTab({
   setModsPath,
   setIsEditing,
   saveConfig,
-  loadConfig,
+  reloadConfig,
   addFilter,
   removeFilter,
   setConcurrency,
@@ -555,7 +563,7 @@ function ConfigTab({
               <button className="btn" onClick={() => setIsEditing(true)}>
                 Edit Configuration
               </button>
-              <button className="btn btn-secondary" onClick={loadConfig}>
+              <button className="btn btn-secondary" onClick={reloadConfig}>
                 Refresh
               </button>
             </div>

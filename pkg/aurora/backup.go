@@ -2,7 +2,6 @@ package aurora
 
 import (
 	"aurora/internal/repository"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +12,31 @@ import (
 
 // BackupOutputPath is the base filename for backup archives
 const BackupOutputPath = "backup_part.zip"
+
+// NewBackupOptions creates compress options for backup with standard settings
+func NewBackupOptions(folders []string, threads int, quiet bool) *compress.Options {
+	return &compress.Options{
+		OutputPath:   BackupOutputPath,
+		Files:        folders,
+		MaxThreads:   threads,
+		Level:        9,
+		UseZipFormat: true,
+		Quiet:        quiet,
+	}
+}
+
+// isModFiltered checks if a mod matches any of the given filters
+// Returns (isFiltered, matchedFilter)
+func isModFiltered(mod *repository.PenumbraMod, filters []string) (bool, string) {
+	for _, filter := range filters {
+		if strings.HasPrefix(mod.Name, filter) ||
+			strings.HasPrefix(mod.Path, filter) ||
+			(len(mod.Collections) == 1 && strings.HasPrefix(mod.Collections[0].Name, filter)) {
+			return true, filter
+		}
+	}
+	return false, ""
+}
 
 // ValidateBackup returns a preview of what will be backed up
 func (a *Aurora) ValidateBackup() BackupValidation {
@@ -39,15 +63,7 @@ func (a *Aurora) ValidateBackup() BackupValidation {
 		}
 
 		// Check filters
-		for _, filter := range a.cfg.Filters {
-			if strings.HasPrefix(mod.Name, filter) ||
-				strings.HasPrefix(mod.Path, filter) ||
-				(len(mod.Collections) == 1 && strings.HasPrefix(mod.Collections[0].Name, filter)) {
-				item.IsFiltered = true
-				item.FilteredBy = filter
-				break
-			}
-		}
+		item.IsFiltered, item.FilteredBy = isModFiltered(&mod, a.cfg.Filters)
 
 		// Only count mods that are in collections and not filtered
 		if len(mod.Collections) > 0 {
@@ -85,80 +101,7 @@ func (a *Aurora) ValidateBackup() BackupValidation {
 	}
 }
 
-// RunBackup executes the backup with progress callback
-func (a *Aurora) RunBackup(threads int, progressCb func(BackupProgress)) (*BackupResult, error) {
-	repo := repository.NewPenumbraRepository(a.cfg)
-
-	folders := []string{}
-	for _, mod := range repo.Mods {
-		// Check if mod is in a collection
-		if len(mod.Collections) == 0 {
-			continue
-		}
-
-		// Check filters
-		filtered := false
-		for _, filter := range a.cfg.Filters {
-			if strings.HasPrefix(mod.Name, filter) ||
-				strings.HasPrefix(mod.Path, filter) ||
-				(len(mod.Collections) == 1 && strings.HasPrefix(mod.Collections[0].Name, filter)) {
-				filtered = true
-				break
-			}
-		}
-
-		if !filtered {
-			file := filepath.Join(a.cfg.Mods.Path, mod.Path)
-			folders = append(folders, file)
-		}
-	}
-
-	if len(folders) == 0 {
-		return nil, fmt.Errorf("no mods to backup")
-	}
-
-	if threads <= 0 {
-		threads = 1
-	}
-
-	opts := &compress.Options{
-		OutputPath:   BackupOutputPath,
-		Files:        folders,
-		MaxThreads:   threads,
-		Level:        9,
-		UseZipFormat: true,
-		Quiet:        true,
-	}
-
-	// Use library progress callback
-	libProgressCb, progress := compress.ProgressBarCallback()
-
-	result, err := compress.Compress(opts, libProgressCb)
-
-	if progress != nil {
-		progress.Wait()
-	}
-
-	if err != nil {
-		if progressCb != nil {
-			progressCb(BackupProgress{Done: true, Error: err.Error()})
-		}
-		return nil, err
-	}
-
-	if progressCb != nil {
-		progressCb(BackupProgress{Done: true, Percent: 100})
-	}
-
-	return &BackupResult{
-		OutputPath:     opts.OutputPath,
-		OriginalSize:   result.OriginalSize,
-		CompressedSize: result.CompressedSize,
-		Ratio:          fmt.Sprintf("%.1f%%", float64(result.CompressedSize)/float64(result.OriginalSize)*100),
-	}, nil
-}
-
-// GetBackupFolders returns the list of folders that would be backed up (for CLI)
+// GetBackupFolders returns the list of mod folders that should be backed up
 func (a *Aurora) GetBackupFolders() []string {
 	repo := repository.NewPenumbraRepository(a.cfg)
 
@@ -168,18 +111,9 @@ func (a *Aurora) GetBackupFolders() []string {
 			continue
 		}
 
-		filtered := false
-		for _, filter := range a.cfg.Filters {
-			if strings.HasPrefix(mod.Name, filter) ||
-				strings.HasPrefix(mod.Path, filter) ||
-				(len(mod.Collections) == 1 && strings.HasPrefix(mod.Collections[0].Name, filter)) {
-				filtered = true
-				break
-			}
-		}
-
+		filtered, _ := isModFiltered(&mod, a.cfg.Filters)
 		if !filtered {
-			file := filepath.Join(a.cfg.Mods.Path, mod.Path)
+			file := filepath.Join(a.cfg.Mods.Path, mod.Name)
 			folders = append(folders, file)
 		}
 	}

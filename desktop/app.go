@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/creativeyann17/go-delta/pkg/compress"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -37,6 +36,12 @@ func (a *App) startup(ctx context.Context) {
 
 // GetConfig returns the current configuration
 func (a *App) GetConfig() aurora.ConfigResult {
+	return a.aurora.GetConfig()
+}
+
+// ReloadConfig reloads configuration from disk
+func (a *App) ReloadConfig() aurora.ConfigResult {
+	a.aurora.ReloadConfig()
 	return a.aurora.GetConfig()
 }
 
@@ -115,14 +120,7 @@ func (a *App) RunBackup(threads int) (*aurora.BackupResult, error) {
 		Done:    false,
 	})
 
-	opts := &compress.Options{
-		OutputPath:   aurora.BackupOutputPath,
-		Files:        folders,
-		MaxThreads:   threads,
-		Level:        9,
-		UseZipFormat: true,
-		Quiet:        true,
-	}
+	opts := aurora.NewBackupOptions(folders, threads, true)
 
 	var totalFiles int64
 	var completedFiles int64
@@ -189,17 +187,4 @@ func (a *App) RunBackup(threads int) (*aurora.BackupResult, error) {
 		CompressedSize: result.CompressedSize,
 		Ratio:          fmt.Sprintf("%.1f%%", float64(result.CompressedSize)/float64(result.OriginalSize)*100),
 	}, nil
-}
-
-// Helper to abbreviate long strings
-func abbreviate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}
-
-// Helper to join strings
-func joinStrings(strs []string, sep string) string {
-	return strings.Join(strs, sep)
 }

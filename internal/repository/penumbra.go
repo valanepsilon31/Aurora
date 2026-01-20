@@ -2,8 +2,7 @@ package repository
 
 import (
 	"aurora/internal/config"
-	"bytes"
-	"encoding/json"
+	"aurora/internal/util"
 	"io/fs"
 	"log"
 	"os"
@@ -36,10 +35,6 @@ type PenumbraCollection struct {
 	Mods []*PenumbraMod
 }
 
-type sortOrder struct {
-	Data map[string]string `json:"Data"`
-}
-
 type collection struct {
 	Name     string                        `json:"Name"`
 	Settings map[string]collectionSettings `json:"Settings"`
@@ -51,6 +46,20 @@ type collectionSettings struct {
 
 const sortOrderFile = "sort_order.json"
 const collectionsFolder = "collections"
+
+// SortOrderData represents the parsed sort_order.json file
+type SortOrderData struct {
+	Data map[string]string `json:"Data"`
+}
+
+// LoadSortOrder reads and parses the sort_order.json file from the given path
+func LoadSortOrder(sortOrderPath string) (*SortOrderData, error) {
+	var data SortOrderData
+	if err := util.ReadJSONFile(sortOrderPath, &data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
 
 func NewPenumbraRepository(config *config.Config) *PenumbraRepository {
 	mods := loadSortOrder(config)
@@ -81,23 +90,14 @@ func NewPenumbraRepository(config *config.Config) *PenumbraRepository {
 func loadSortOrder(config *config.Config) []PenumbraMod {
 	path := filepath.Join(config.Penumbra.Path, sortOrderFile)
 
-	contentBytes, err := os.ReadFile(path)
+	sortOrder, err := LoadSortOrder(path)
 	if err != nil {
-		log.Fatalf("Failed to read penumbra file: %v", err)
-	}
-
-	// strip BOM if present
-	contentBytes = bytes.TrimPrefix(contentBytes, []byte("\xEF\xBB\xBF"))
-
-	sortOrder := sortOrder{}
-	err = json.Unmarshal(contentBytes, &sortOrder)
-	if err != nil {
-		log.Fatalf("Failed to parse penumbra file: %v", err)
+		log.Fatalf("Failed to load sort_order.json: %v", err)
 	}
 
 	mods := make([]PenumbraMod, 0, len(sortOrder.Data))
 	seen := make(map[string]bool)
-	for path, name := range sortOrder.Data {
+	for modPath, name := range sortOrder.Data {
 		// Use filepath.Base to handle both / and \ separators
 		modName := filepath.Base(name)
 		// Skip duplicates by name
@@ -109,7 +109,7 @@ func loadSortOrder(config *config.Config) []PenumbraMod {
 			continue
 		}
 		seen[modName] = true
-		mods = append(mods, PenumbraMod{Name: modName, Path: path, Size: size})
+		mods = append(mods, PenumbraMod{Name: modName, Path: modPath, Size: size})
 	}
 
 	slices.SortFunc(mods, func(a, b PenumbraMod) int {
@@ -133,19 +133,12 @@ func loadCollections(mods []PenumbraMod, config *config.Config) []PenumbraCollec
 
 	collections := []PenumbraCollection{}
 	for _, entry := range entries {
-		if !entry.IsDir() && entry.Name()[len(entry.Name())-5:] == ".json" {
-			contentBytes, err := os.ReadFile(filepath.Join(path, entry.Name()))
-			if err != nil {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".json" {
+			filePath := filepath.Join(path, entry.Name())
+			var rawCollection collection
+			if err := util.ReadJSONFile(filePath, &rawCollection); err != nil {
 				log.Printf("Failed to read penumbra collection file: %s: %v", entry.Name(), err)
 				continue
-			}
-			// strip BOM if present
-			contentBytes = bytes.TrimPrefix(contentBytes, []byte("\xEF\xBB\xBF"))
-
-			rawCollection := collection{}
-			err = json.Unmarshal(contentBytes, &rawCollection)
-			if err != nil {
-				log.Fatalf("Failed to parse penumbra collection file: %s: %v", entry.Name(), err)
 			}
 
 			penumbraCollection := PenumbraCollection{}

@@ -52,7 +52,7 @@ func runBackupCmd(cmd *cobra.Command, args []string) {
 		if item.IsFiltered {
 			collections = fmt.Sprintf("Filtered by: %s", item.FilteredBy)
 		} else {
-			collections = abbreviatePath(joinStrings(item.Mod.Collections, ", "), 100)
+			collections = abbreviatePath(strings.Join(item.Mod.Collections, ", "), 100)
 		}
 		row := []string{item.Mod.Name, collections, item.Mod.SizeHuman}
 		data = append(data, row)
@@ -87,14 +87,7 @@ func runBackupCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	opts := &compress.Options{
-		OutputPath:   aurora.BackupOutputPath,
-		Files:        folders,
-		MaxThreads:   thread,
-		Level:        9,
-		UseZipFormat: true,
-		Quiet:        false,
-	}
+	opts := aurora.NewBackupOptions(folders, thread, false)
 
 	progressCb, progress := compress.ProgressBarCallback()
 	result, err := compress.Compress(opts, progressCb)
@@ -109,8 +102,4 @@ func runBackupCmd(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Print(compress.FormatSummary(result, opts))
-}
-
-func joinStrings(strs []string, sep string) string {
-	return strings.Join(strs, sep)
 }

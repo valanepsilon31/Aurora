@@ -27,6 +27,11 @@ func NewWithReset(reset bool) *Aurora {
 	}
 }
 
+// ReloadConfig reloads the configuration from disk
+func (a *Aurora) ReloadConfig() {
+	a.cfg = config.NewConfig(false)
+}
+
 // GetConfig returns the current configuration
 func (a *Aurora) GetConfig() ConfigResult {
 	status := a.cfg.Status()
