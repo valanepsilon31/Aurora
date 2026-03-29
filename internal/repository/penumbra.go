@@ -45,25 +45,10 @@ type collectionSettings struct {
 	Enabled bool `json:"Enabled"`
 }
 
-const sortOrderFile = "sort_order.json"
 const collectionsFolder = "collections"
 
-// SortOrderData represents the parsed sort_order.json file
-type SortOrderData struct {
-	Data map[string]string `json:"Data"`
-}
-
-// LoadSortOrder reads and parses the sort_order.json file from the given path
-func LoadSortOrder(sortOrderPath string) (*SortOrderData, error) {
-	var data SortOrderData
-	if err := util.ReadJSONFile(sortOrderPath, &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
-}
-
 func NewPenumbraRepository(config *config.Config) *PenumbraRepository {
-	mods := loadSortOrder(config)
+	mods := loadMods(config)
 	repo := PenumbraRepository{
 		path:        config.Penumbra.Path,
 		Mods:        mods,
@@ -88,24 +73,19 @@ func NewPenumbraRepository(config *config.Config) *PenumbraRepository {
 	return &repo
 }
 
-func loadSortOrder(config *config.Config) []PenumbraMod {
-	path := filepath.Join(config.Penumbra.Path, sortOrderFile)
-
-	sortOrder, err := LoadSortOrder(path)
+func loadMods(config *config.Config) []PenumbraMod {
+	entries, err := os.ReadDir(config.Mods.Path)
 	if err != nil {
-		logger.Error("Failed to load sort_order.json: %v", err)
-		log.Fatalf("Failed to load sort_order.json: %v", err)
+		logger.Error("Failed to read mods directory: %v", err)
+		log.Fatalf("Failed to read mods directory: %v", err)
 	}
 
-	mods := make([]PenumbraMod, 0, len(sortOrder.Data))
-	seen := make(map[string]bool)
-	for modName, penumbraPath := range sortOrder.Data {
-		// Key (modName) is the filesystem folder name
-		// Value (penumbraPath) is Penumbra's internal path (may contain special chars)
-		if seen[modName] {
-			logger.Warn("Skipping duplicate mod: %s", modName)
+	mods := make([]PenumbraMod, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
 			continue
 		}
+		modName := entry.Name()
 		modFullPath := filepath.Join(config.Mods.Path, modName)
 		size, err := getModSize(modFullPath)
 		if err != nil {
@@ -116,8 +96,7 @@ func loadSortOrder(config *config.Config) []PenumbraMod {
 			logger.Info("Skipping mod with size 0: %s", modName)
 			continue
 		}
-		seen[modName] = true
-		mods = append(mods, PenumbraMod{Name: modName, Path: penumbraPath, Size: size})
+		mods = append(mods, PenumbraMod{Name: modName, Path: modName, Size: size})
 	}
 
 	slices.SortFunc(mods, func(a, b PenumbraMod) int {

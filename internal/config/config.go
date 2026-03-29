@@ -80,27 +80,18 @@ func (c *Config) Status() ConfigStatus {
 		Mods:     "OK",
 	}
 
-	sortOrderJsonPath := filepath.Join(c.Penumbra.Path, "sort_order.json")
-
 	fileInfo, err := os.Stat(c.Penumbra.Path)
 	if err != nil || !fileInfo.IsDir() {
 		status.Penumbra = "Invalid Penumbra path"
 		status.Valid = false
 		logger.Warn("Invalid Penumbra path: %s", c.Penumbra.Path)
 	} else {
-		fileInfo, err = os.Stat(sortOrderJsonPath)
-		if err != nil {
-			status.Penumbra = "sort_order.json not found in Penumbra path"
+		collectionsFolder := filepath.Join(c.Penumbra.Path, "collections")
+		fileInfo, err = os.Stat(collectionsFolder)
+		if err != nil || !fileInfo.IsDir() {
+			status.Penumbra = "collections folder not found in Penumbra path"
 			status.Valid = false
-			logger.Warn("sort_order.json not found at: %s", sortOrderJsonPath)
-		} else {
-			collectionsFolder := filepath.Join(c.Penumbra.Path, "collections")
-			fileInfo, err = os.Stat(collectionsFolder)
-			if err != nil || !fileInfo.IsDir() {
-				status.Penumbra = "collections folder not found in Penumbra path"
-				status.Valid = false
-				logger.Warn("collections folder not found at: %s", collectionsFolder)
-			}
+			logger.Warn("collections folder not found at: %s", collectionsFolder)
 		}
 	}
 
@@ -110,11 +101,10 @@ func (c *Config) Status() ConfigStatus {
 		status.Valid = false
 		logger.Warn("Invalid Mods path: %s", c.Mods.Path)
 	} else if status.Penumbra == "OK" {
-		// Both paths are valid, check if at least one mod from Penumbra exists in Mods folder
-		if !hasMatchingMod(sortOrderJsonPath, c.Mods.Path) {
-			status.Mods = "No mods from Penumbra found in Mods folder"
+		if !hasModFolders(c.Mods.Path) {
+			status.Mods = "No mod folders found in Mods path"
 			status.Valid = false
-			logger.Warn("No mods from Penumbra found in Mods folder: %s", c.Mods.Path)
+			logger.Warn("No mod folders found in Mods path: %s", c.Mods.Path)
 		}
 	}
 
@@ -122,18 +112,15 @@ func (c *Config) Status() ConfigStatus {
 	return status
 }
 
-// hasMatchingMod checks if at least one mod from sort_order.json exists in the mods folder
-func hasMatchingMod(sortOrderPath, modsPath string) bool {
-	var data struct {
-		Data map[string]string `json:"Data"`
-	}
-	if err := util.ReadJSONFile(sortOrderPath, &data); err != nil {
+// hasModFolders checks if the mods directory contains at least one subdirectory
+func hasModFolders(modsPath string) bool {
+	entries, err := os.ReadDir(modsPath)
+	if err != nil {
 		return false
 	}
 
-	for modName := range data.Data {
-		modPath := filepath.Join(modsPath, modName)
-		if info, err := os.Stat(modPath); err == nil && info.IsDir() {
+	for _, entry := range entries {
+		if entry.IsDir() {
 			return true
 		}
 	}
