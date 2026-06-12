@@ -52,6 +52,61 @@ interface ConfigResult {
 interface FilterMatches {
   filters: Record<string, number>
   inclusions: Record<string, number>
+  inclusionsAny: Record<string, number>
+}
+
+// Single-select dropdown reusing the FilterMenu styling. Replaces native
+// <select>: its option popup is unstylable and renders white on Windows.
+function SelectDropdown({ value, options, onChange }: {
+  value: string
+  options: { value: string; label: string }[]
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const currentLabel = options.find((o) => o.value === value)?.label ?? value
+
+  return (
+    <div className="filter-menu select-menu" ref={ref}>
+      <button className="filter-menu-btn" onClick={() => setOpen(!open)}>
+        {currentLabel} <span className="filter-menu-arrow">▾</span>
+      </button>
+      {open && (
+        <div className="filter-menu-panel select-menu-panel">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              className={`suggestion-item ${o.value === value ? 'suggestion-item-selected' : ''}`}
+              onClick={() => {
+                onChange(o.value)
+                setOpen(false)
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Count chip next to a filter. undefined = count not computed yet (initial
@@ -65,6 +120,29 @@ function FilterCount({ count }: { count: number | undefined }) {
       ({count})
     </span>
   )
+}
+
+// Count chip for inclusions. Three states: (n) = mods this inclusion adds or
+// rescues, green check = matches mods that are already backed up via their
+// collections (valid but currently redundant), red (0) = matches nothing.
+function InclusionCount({ decisive, any }: { decisive: number | undefined; any: number | undefined }) {
+  if (decisive === undefined || any === undefined) {
+    return <span className="filter-count">(…)</span>
+  }
+  if (decisive > 0) {
+    return <span className="filter-count">({decisive})</span>
+  }
+  if (any > 0) {
+    return (
+      <span
+        className="filter-count filter-count-ok"
+        title="Matching mods are already in the backup via their collections"
+      >
+        ✓
+      </span>
+    )
+  }
+  return <span className="filter-count filter-count-zero">(0)</span>
 }
 
 interface Mod {
@@ -721,14 +799,14 @@ function ConfigTab({
                   Compression
                   <span className="help-badge tooltip-right" data-tooltip="Normal: fast backups (default).&#10;Max: smallest backups, about twice as slow for ~5% smaller files.">?</span>
                 </span>
-                <select
+                <SelectDropdown
                   value={compressionValue}
-                  onChange={(e) => handleCompressionChange(e.target.value)}
-                  className="compression-select"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="max">Max</option>
-                </select>
+                  options={[
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'max', label: 'Max' },
+                  ]}
+                  onChange={handleCompressionChange}
+                />
               </span>
             </div>
             <div className="actions">
@@ -825,7 +903,10 @@ function ConfigTab({
                   config.inclusions.map((inclusion) => (
                     <div key={inclusion} className="filter-item">
                       <span className="filter-text">{inclusion}</span>
-                      <FilterCount count={filterMatches?.inclusions[inclusion]} />
+                      <InclusionCount
+                        decisive={filterMatches?.inclusions[inclusion]}
+                        any={filterMatches?.inclusionsAny[inclusion]}
+                      />
                       <button className="filter-delete" onClick={() => removeInclusion(inclusion)} title="Remove inclusion">
                         ×
                       </button>

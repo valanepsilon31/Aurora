@@ -91,8 +91,12 @@ type BackupResult struct {
 	Ratio          string `json:"ratio"`
 }
 
-// FilterMatches reports per-pattern mod match counts for the config filters
+// FilterMatches reports per-pattern mod match counts for the config filters.
+// Inclusions carries decisive matches (mods the inclusion adds or rescues);
+// InclusionsAny counts every match, including mods already backed up via
+// collections - so the UI can tell "redundant" apart from "dead".
 type FilterMatches struct {
-	Filters    map[string]int `json:"filters"`
-	Inclusions map[string]int `json:"inclusions"`
+	Filters       map[string]int `json:"filters"`
+	Inclusions    map[string]int `json:"inclusions"`
+	InclusionsAny map[string]int `json:"inclusionsAny"`
 }

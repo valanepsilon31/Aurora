@@ -460,36 +460,23 @@ input[type="text"]::placeholder {
   margin-left: 1.25rem;
 }
 
-/* Compression preset select.
-   appearance: none is required: the native select ignores CSS backgrounds
-   in the webview and renders white/unreadable. Chevron re-added as SVG. */
-.compression-select {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 110px;
-  padding: 0.3rem 1.6rem 0.3rem 0.5rem;
-  background-color: var(--bg-card);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 0.5rem center;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  font-family: 'SF Mono', 'Monaco', monospace;
-  cursor: pointer;
-  transition: all 0.3s ease;
+/* Single-select dropdown (compression preset): panel hugs the button,
+   options reuse .suggestion-item with a selected highlight */
+.select-menu .filter-menu-panel {
+  left: 0;
+  right: auto;
+  min-width: 110px;
+  padding: 0.4rem;
+  gap: 0.15rem;
 }
 
-.compression-select:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+.suggestion-item-selected {
+  background: var(--accent-primary);
+  color: white;
 }
 
-.compression-select option {
-  background: var(--bg-card);
-  color: var(--text-primary);
+.suggestion-item-selected:hover {
+  background: var(--accent-secondary);
 }
 
 /* Input with browse button */
@@ -1148,6 +1135,10 @@ input[type="text"]::placeholder {
 
 .filter-count-zero {
   color: var(--error);
+}
+
+.filter-count-ok {
+  color: var(--success);
 }
 
 /* Two side-by-side lists: exclusions | inclusions */

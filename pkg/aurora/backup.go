@@ -255,14 +255,16 @@ func (a *Aurora) GetFilterMatches() (FilterMatches, error) {
 	}
 
 	result := FilterMatches{
-		Filters:    make(map[string]int, len(a.cfg.Filters)),
-		Inclusions: make(map[string]int, len(a.cfg.Inclusions)),
+		Filters:       make(map[string]int, len(a.cfg.Filters)),
+		Inclusions:    make(map[string]int, len(a.cfg.Inclusions)),
+		InclusionsAny: make(map[string]int, len(a.cfg.Inclusions)),
 	}
 	for _, f := range a.cfg.Filters {
 		result.Filters[f] = 0
 	}
 	for _, f := range a.cfg.Inclusions {
 		result.Inclusions[f] = 0
+		result.InclusionsAny[f] = 0
 	}
 
 	for _, mod := range repo.Mods {
@@ -276,6 +278,7 @@ func (a *Aurora) GetFilterMatches() (FilterMatches, error) {
 			if !matched {
 				continue
 			}
+			result.InclusionsAny[f]++
 			if len(mod.Collections) == 0 {
 				result.Inclusions[f]++
 				continue

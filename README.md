@@ -38,7 +38,11 @@ Backups include every mod referenced by at least one collection. Two filter list
 - **Exclusions** — matching mods are skipped. A mod is excluded when its name matches, or when *every* collection using it matches (so a mod still needed by another collection stays in).
 - **Inclusions** — matching mods are *always* backed up, even when no collection references them. Inclusions win over exclusions.
 
-Filters match by prefix, case-insensitive, with autocomplete from your mods and collections. Each filter chip shows how many mods it currently matches — a red `(0)` means the filter matches nothing.
+Filters match by prefix, case-insensitive, with autocomplete from your mods and collections. Each filter chip shows what it currently does:
+
+- `(n)` — how many mods the filter matches (for inclusions: how many it adds or rescues)
+- green `✓` — the inclusion matches mods that are already backed up via their collections (valid, kept as insurance)
+- red `(0)` — the filter matches nothing
 
 ### 3. Browse Your Collections
 
@@ -54,9 +58,13 @@ Preview what will be backed up — entries show why they're in or out (`filter e
 
 ### 5. Watch the Progress
 
-Progress is byte-accurate (no stalling at 50% then jumping to 100%), and once done, **Open folder** takes you straight to the archives.
+Progress is byte-accurate (no stalling at 50% then jumping to 100%).
 
 ![Progress](docs/desktop-progress.jpg)
+
+Once done, **Open folder** takes you straight to the archives.
+
+![Progress Done](docs/desktop-progress_done.jpg)
 
 ---
 
