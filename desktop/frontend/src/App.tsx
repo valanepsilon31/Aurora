@@ -54,6 +54,19 @@ interface FilterMatches {
   inclusions: Record<string, number>
 }
 
+// Count chip next to a filter. undefined = count not computed yet (initial
+// load, or a freshly added pattern): show a counting hint, never a fake 0.
+function FilterCount({ count }: { count: number | undefined }) {
+  if (count === undefined) {
+    return <span className="filter-count">(…)</span>
+  }
+  return (
+    <span className={`filter-count ${count === 0 ? 'filter-count-zero' : ''}`}>
+      ({count})
+    </span>
+  )
+}
+
 interface Mod {
   name: string
   path: string
@@ -506,6 +519,7 @@ function ConfigTab({
   setCompression,
 }: ConfigTabProps) {
   const [newFilter, setNewFilter] = useState('')
+  const [suggestOpen, setSuggestOpen] = useState(false)
   const [filterMatches, setFilterMatches] = useState<FilterMatches | null>(null)
 
   // Suggestions matching the typed text, capped: mounting the full
@@ -576,6 +590,8 @@ function ConfigTab({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleAddFilter()
+    } else if (e.key === 'Escape') {
+      setSuggestOpen(false)
     }
   }
 
@@ -735,22 +751,40 @@ function ConfigTab({
           </h2>
 
           <div className="filter-add">
-            <input
-              type="text"
-              value={newFilter}
-              onChange={(e) => setNewFilter(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Enter filter pattern or select a mod/collection..."
-              list="filter-suggestions"
-            />
-            {/* Options are emptied rather than the list attribute removed:
-                the webview doesn't dismiss an already-open popup when the
-                attribute disappears. */}
-            <datalist id="filter-suggestions">
-              {visibleSuggestions.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
+            {/* Custom suggestions popup instead of a native datalist: the
+                native popup is unstylable (tiny and light-themed on Windows)
+                and suggestions are already filtered in JS anyway */}
+            <div className="filter-input-wrap">
+              <input
+                type="text"
+                value={newFilter}
+                onChange={(e) => { setNewFilter(e.target.value); setSuggestOpen(true) }}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setSuggestOpen(true)}
+                onBlur={() => setSuggestOpen(false)}
+                placeholder="Enter filter pattern or select a mod/collection..."
+              />
+              {suggestOpen && visibleSuggestions.length > 0 && (
+                <div className="suggestions-popup">
+                  {visibleSuggestions.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className="suggestion-item"
+                      // mousedown (not click): fires before the input blur
+                      // hides the popup
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        setNewFilter(name)
+                        setSuggestOpen(false)
+                      }}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button className="btn" onClick={handleAddFilter} disabled={!newFilter.trim()}>
               + Exclusion
             </button>
@@ -770,11 +804,7 @@ function ConfigTab({
                   config.filters.map((filter) => (
                     <div key={filter} className="filter-item">
                       <span className="filter-text">{filter}</span>
-                      {filterMatches && (
-                        <span className={`filter-count ${(filterMatches.filters[filter] ?? 0) === 0 ? 'filter-count-zero' : ''}`}>
-                          ({filterMatches.filters[filter] ?? 0})
-                        </span>
-                      )}
+                      <FilterCount count={filterMatches?.filters[filter]} />
                       <button className="filter-delete" onClick={() => removeFilter(filter)} title="Remove exclusion">
                         ×
                       </button>
@@ -795,11 +825,7 @@ function ConfigTab({
                   config.inclusions.map((inclusion) => (
                     <div key={inclusion} className="filter-item">
                       <span className="filter-text">{inclusion}</span>
-                      {filterMatches && (
-                        <span className={`filter-count ${(filterMatches.inclusions[inclusion] ?? 0) === 0 ? 'filter-count-zero' : ''}`}>
-                          ({filterMatches.inclusions[inclusion] ?? 0})
-                        </span>
-                      )}
+                      <FilterCount count={filterMatches?.inclusions[inclusion]} />
                       <button className="filter-delete" onClick={() => removeInclusion(inclusion)} title="Remove inclusion">
                         ×
                       </button>

@@ -1077,6 +1077,51 @@ input[type="text"]::placeholder {
   margin-bottom: 0;
 }
 
+/* Wrapper anchoring the suggestions popup to the input */
+.filter-input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.filter-input-wrap input {
+  flex: 1;
+}
+
+.suggestions-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.suggestion-item {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-item:hover {
+  background: var(--bg-card-hover);
+}
+
 .filter-add .btn {
   padding: 0.6rem 1rem;
   white-space: nowrap;
@@ -1318,7 +1363,9 @@ input[type="text"]::placeholder {
   height: 100%;
   background: var(--accent-gradient);
   border-radius: 8px;
-  transition: width 0.3s ease;
+  /* Fast + linear: a slow eased transition makes the fill lag the percent
+     number during end-of-backup event bursts, then visually jump */
+  transition: width 0.1s linear;
   position: relative;
 }
 

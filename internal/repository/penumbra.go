@@ -48,7 +48,19 @@ type collectionSettings struct {
 const collectionsFolder = "collections"
 
 func NewPenumbraRepository(config *config.Config) (*PenumbraRepository, error) {
-	mods, err := loadMods(config)
+	return newRepository(config, true)
+}
+
+// NewPenumbraRepositoryNoSizes loads mods and collections without computing
+// per-mod disk sizes. Walking every mod folder for sizes is by far the
+// slowest part of a load; matching and counting don't need them.
+// Note: empty mod folders are kept (the size==0 skip needs sizes).
+func NewPenumbraRepositoryNoSizes(config *config.Config) (*PenumbraRepository, error) {
+	return newRepository(config, false)
+}
+
+func newRepository(config *config.Config, withSizes bool) (*PenumbraRepository, error) {
+	mods, err := loadMods(config, withSizes)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +93,7 @@ func NewPenumbraRepository(config *config.Config) (*PenumbraRepository, error) {
 	return &repo, nil
 }
 
-func loadMods(config *config.Config) ([]PenumbraMod, error) {
+func loadMods(config *config.Config, withSizes bool) ([]PenumbraMod, error) {
 	entries, err := os.ReadDir(config.Mods.Path)
 	if err != nil {
 		logger.Error("Failed to read mods directory: %v", err)
@@ -94,15 +106,19 @@ func loadMods(config *config.Config) ([]PenumbraMod, error) {
 			continue
 		}
 		modName := entry.Name()
-		modFullPath := filepath.Join(config.Mods.Path, modName)
-		size, err := getModSize(modFullPath)
-		if err != nil {
-			logger.Warn("Failed to get mod size for %s: %v", modName, err)
-			continue
-		}
-		if size == 0 {
-			logger.Info("Skipping mod with size 0: %s", modName)
-			continue
+		var size uint64
+		if withSizes {
+			modFullPath := filepath.Join(config.Mods.Path, modName)
+			var err error
+			size, err = getModSize(modFullPath)
+			if err != nil {
+				logger.Warn("Failed to get mod size for %s: %v", modName, err)
+				continue
+			}
+			if size == 0 {
+				logger.Info("Skipping mod with size 0: %s", modName)
+				continue
+			}
 		}
 		mods = append(mods, PenumbraMod{Name: modName, Path: modName, Size: size})
 	}

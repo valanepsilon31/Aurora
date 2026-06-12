@@ -247,7 +247,9 @@ func (a *Aurora) GetBackupFolders() ([]string, error) {
 // they are decisive (mod has no collection, or an exclusion would drop it).
 // A count of 0 signals a dead filter.
 func (a *Aurora) GetFilterMatches() (FilterMatches, error) {
-	repo, err := repository.NewPenumbraRepository(a.cfg)
+	// Size-free load: counting only needs names and collection membership,
+	// and walking every mod folder for sizes dominates load time
+	repo, err := repository.NewPenumbraRepositoryNoSizes(a.cfg)
 	if err != nil {
 		return FilterMatches{}, err
 	}
