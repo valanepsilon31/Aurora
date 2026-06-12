@@ -22,25 +22,39 @@ Aurora is a simple backup tool for [Penumbra](https://github.com/xivdev/Penumbra
 
 ### 1. Configure Your Paths
 
-Set your Penumbra config folder and mods folder. You can also add filters to exclude specific mods or collections from backups.
+Set your Penumbra config folder, your mods folder, and (optionally) where backup archives are written — by default they land next to the app.
+
+A few more knobs live here:
+
+- **Concurrency** — how many threads compress in parallel (0 = all CPU cores).
+- **Compression** — `Normal` (default, fast) or `Max` (smallest archives, about twice as slow for ~5% smaller files).
 
 ![Config Tab](docs/desktop-config.jpg)
 
-### 2. Browse Your Collections
+### 2. Filter What Gets Backed Up
+
+Backups include every mod referenced by at least one collection. Two filter lists refine that:
+
+- **Exclusions** — matching mods are skipped. A mod is excluded when its name matches, or when *every* collection using it matches (so a mod still needed by another collection stays in).
+- **Inclusions** — matching mods are *always* backed up, even when no collection references them. Inclusions win over exclusions.
+
+Filters match by prefix, case-insensitive, with autocomplete from your mods and collections. Each filter chip shows how many mods it currently matches — a red `(0)` means the filter matches nothing.
+
+### 3. Browse Your Collections
 
 See all your Penumbra collections at a glance. Check which mods are in use and how much space they take.
 
 ![Collections Tab](docs/desktop-collections.jpg)
 
-### 3. Create Your Backup
+### 4. Create Your Backup
 
-Preview what will be backed up, then hit the button. Aurora compresses only the mods you're actually using.
+Preview what will be backed up — entries show why they're in or out (`filter exclusion: ...` / `filter inclusion: ...`), and the filter menu narrows the list to just those. Then hit the button.
 
 ![Backup Tab](docs/desktop-backup.jpg)
 
-### 4. Watch the Progress
+### 5. Watch the Progress
 
-Sit back and relax while Aurora does its thing.
+Progress is byte-accurate (no stalling at 50% then jumping to 100%), and once done, **Open folder** takes you straight to the archives.
 
 ![Progress](docs/desktop-progress.jpg)
 
@@ -52,11 +66,9 @@ Grab the latest release for your platform from the [Releases](https://github.com
 
 | Platform | Desktop App | CLI Only |
 |----------|-------------|----------|
-| Windows | `aurora-desktop-windows-amd64.zip` | `aurora-windows-amd64.zip` |
-| macOS (Apple Silicon) | `aurora-desktop-darwin-arm64.tar.gz` | `aurora-darwin-arm64.tar.gz` |
-| macOS (Intel) | *not supported* | `aurora-darwin-amd64.tar.gz` |
-| Linux | `aurora-desktop-linux-amd64.tar.gz` | `aurora-linux-amd64.tar.gz` |
-| Linux | *not supported* | `aurora-linux-arm64.tar.gz` |
+| Windows | `aurora-desktop-windows-amd64.zip` | `aurora-cli-windows-amd64.zip` |
+| macOS (Apple Silicon) | `aurora-desktop-darwin-arm64.zip` | `aurora-cli-darwin-arm64.tar.gz` |
+| Linux | `aurora-desktop-linux-amd64.tar.gz` | `aurora-cli-linux-amd64.tar.gz` |
 ---
 
 ## CLI (Optional)

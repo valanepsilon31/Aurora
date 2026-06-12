@@ -25,7 +25,10 @@ func TestLoadMods(t *testing.T) {
 			Mods:     config.ModsConfig{Path: modsDir},
 		}
 
-		repo := NewPenumbraRepository(cfg)
+		repo, err := NewPenumbraRepository(cfg)
+		if err != nil {
+			t.Fatalf("NewPenumbraRepository failed: %v", err)
+		}
 
 		if len(repo.Mods) != 3 {
 			t.Fatalf("expected 3 mods, got %d", len(repo.Mods))
@@ -56,7 +59,10 @@ func TestLoadMods(t *testing.T) {
 			Mods:     config.ModsConfig{Path: modsDir},
 		}
 
-		repo := NewPenumbraRepository(cfg)
+		repo, err := NewPenumbraRepository(cfg)
+		if err != nil {
+			t.Fatalf("NewPenumbraRepository failed: %v", err)
+		}
 
 		if len(repo.Mods) != 1 {
 			t.Fatalf("expected 1 mod, got %d", len(repo.Mods))
@@ -83,7 +89,10 @@ func TestLoadMods(t *testing.T) {
 			Mods:     config.ModsConfig{Path: modsDir},
 		}
 
-		repo := NewPenumbraRepository(cfg)
+		repo, err := NewPenumbraRepository(cfg)
+		if err != nil {
+			t.Fatalf("NewPenumbraRepository failed: %v", err)
+		}
 
 		if len(repo.Mods) != 1 {
 			t.Fatalf("expected 1 mod, got %d", len(repo.Mods))
@@ -106,13 +115,46 @@ func TestLoadMods(t *testing.T) {
 			Mods:     config.ModsConfig{Path: modsDir},
 		}
 
-		repo := NewPenumbraRepository(cfg)
+		repo, err := NewPenumbraRepository(cfg)
+		if err != nil {
+			t.Fatalf("NewPenumbraRepository failed: %v", err)
+		}
 
 		if len(repo.Mods) != 1 {
 			t.Fatalf("expected 1 mod, got %d", len(repo.Mods))
 		}
 		if repo.Mods[0].Path != "TestMod" {
 			t.Errorf("expected Path to equal folder name 'TestMod', got %s", repo.Mods[0].Path)
+		}
+	})
+}
+
+func TestNewPenumbraRepositoryErrors(t *testing.T) {
+	t.Run("missing collections folder returns error instead of crashing", func(t *testing.T) {
+		modsDir := t.TempDir()
+		penumbraDir := t.TempDir() // no collections/ subfolder
+
+		cfg := &config.Config{
+			Penumbra: config.PenumbraConfig{Path: penumbraDir},
+			Mods:     config.ModsConfig{Path: modsDir},
+		}
+
+		if _, err := NewPenumbraRepository(cfg); err == nil {
+			t.Fatal("expected error for missing collections folder, got nil")
+		}
+	})
+
+	t.Run("missing mods folder returns error instead of crashing", func(t *testing.T) {
+		penumbraDir := t.TempDir()
+		os.MkdirAll(filepath.Join(penumbraDir, "collections"), 0755)
+
+		cfg := &config.Config{
+			Penumbra: config.PenumbraConfig{Path: penumbraDir},
+			Mods:     config.ModsConfig{Path: filepath.Join(penumbraDir, "does-not-exist")},
+		}
+
+		if _, err := NewPenumbraRepository(cfg); err == nil {
+			t.Fatal("expected error for missing mods folder, got nil")
 		}
 	})
 }

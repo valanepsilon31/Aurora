@@ -4,8 +4,11 @@ package aurora
 type ConfigResult struct {
 	PenumbraPath string       `json:"penumbraPath"`
 	ModsPath     string       `json:"modsPath"`
+	OutputPath   string       `json:"outputPath"`
 	Filters      []string     `json:"filters"`
+	Inclusions   []string     `json:"inclusions"`
 	Concurrency  int          `json:"concurrency"`
+	Compression  string       `json:"compression"`
 	Status       ConfigStatus `json:"status"`
 }
 
@@ -14,6 +17,7 @@ type ConfigStatus struct {
 	Valid          bool   `json:"valid"`
 	PenumbraStatus string `json:"penumbraStatus"`
 	ModsStatus     string `json:"modsStatus"`
+	OutputStatus   string `json:"outputStatus"`
 }
 
 // Collection represents a Penumbra mod collection
@@ -53,8 +57,10 @@ type CollectionsResult struct {
 // BackupItem represents a mod to be backed up
 type BackupItem struct {
 	Mod        Mod    `json:"mod"`
-	FilteredBy string `json:"filteredBy,omitempty"`
+	FilteredBy string `json:"filteredBy,omitempty"` // Matching exclusion filter
 	IsFiltered bool   `json:"isFiltered"`
+	IncludedBy string `json:"includedBy,omitempty"` // Matching inclusion filter (mod has no collections)
+	IsIncluded bool   `json:"isIncluded"`
 }
 
 // BackupValidation represents the backup preview
@@ -83,4 +89,10 @@ type BackupResult struct {
 	OriginalSize   uint64 `json:"originalSize"`
 	CompressedSize uint64 `json:"compressedSize"`
 	Ratio          string `json:"ratio"`
+}
+
+// FilterMatches reports per-pattern mod match counts for the config filters
+type FilterMatches struct {
+	Filters    map[string]int `json:"filters"`
+	Inclusions map[string]int `json:"inclusions"`
 }

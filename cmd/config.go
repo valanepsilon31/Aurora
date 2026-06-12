@@ -27,13 +27,21 @@ func runConfigCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	app := aurora.NewWithReset(reset)
+	app, err := aurora.NewWithReset(reset)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load configuration: %v\n", err)
+		os.Exit(1)
+	}
 	cfg := app.GetConfig()
 
 	if reset {
 		penumbraPath := prompt(fmt.Sprintf("Enter the path to Penumbra folder (current: %s)", cfg.PenumbraPath))
 		modsPath := prompt(fmt.Sprintf("Enter the path to mods folder (current: %s)", cfg.ModsPath))
-		app.UpdateConfig(penumbraPath, modsPath)
+		outputPath := prompt(fmt.Sprintf("Enter the backup output folder, empty = current directory (current: %s)", cfg.OutputPath))
+		if err := app.UpdateConfig(penumbraPath, modsPath, outputPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to save configuration: %v\n", err)
+			os.Exit(1)
+		}
 		cfg = app.GetConfig()
 	}
 
@@ -41,6 +49,7 @@ func runConfigCmd(cmd *cobra.Command, args []string) {
 		{"FIELD", "VALUE", "STATUS"},
 		{"Penumbra path", abbreviatePath(cfg.PenumbraPath, 100), cfg.Status.PenumbraStatus},
 		{"Mods path", abbreviatePath(cfg.ModsPath, 100), cfg.Status.ModsStatus},
+		{"Output path", abbreviatePath(cfg.OutputPath, 100), cfg.Status.OutputStatus},
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)

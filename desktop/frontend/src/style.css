@@ -123,16 +123,6 @@ body {
   overflow: hidden;
 }
 
-.tab::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--accent-gradient);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  border-radius: 10px;
-}
-
 .tab:hover:not(:disabled) {
   color: var(--text-primary);
   border-color: var(--border-color);
@@ -192,10 +182,6 @@ body {
 }
 
 .backup-tab .stats {
-  flex-shrink: 0;
-}
-
-.backup-tab .success-card {
   flex-shrink: 0;
 }
 
@@ -300,6 +286,19 @@ body {
   flex-direction: column;
   align-items: flex-end;
   gap: 0.25rem;
+}
+
+/* One container holding several label/value lines (Penumbra + Mods) */
+.field-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.field-stacked .field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .field-path {
@@ -443,10 +442,54 @@ input[type="text"]::placeholder {
   opacity: 1;
 }
 
-.concurrency-hint {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  margin-left: 0.5rem;
+/* Inline controls sharing one field row (concurrency + compression).
+   margin-right: auto keeps the group left-aligned next to the row label
+   despite the parent .field using justify-content: space-between. */
+.field-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: none;
+  text-align: left;
+  margin-left: 1rem;
+  margin-right: auto;
+}
+
+/* Extra breathing room between the concurrency count and the next label */
+.field-inline .field-label {
+  margin-left: 1.25rem;
+}
+
+/* Compression preset select.
+   appearance: none is required: the native select ignores CSS backgrounds
+   in the webview and renders white/unreadable. Chevron re-added as SVG. */
+.compression-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 110px;
+  padding: 0.3rem 1.6rem 0.3rem 0.5rem;
+  background-color: var(--bg-card);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.compression-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+}
+
+.compression-select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
 }
 
 /* Input with browse button */
@@ -538,15 +581,103 @@ input[type="text"]::placeholder {
   padding-top: 0.5rem;
 }
 
+/* Custom-drawn checkbox: the native one renders a white background in the
+   webview regardless of theme (same story as selects) */
 .checkbox-filter input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  accent-color: var(--accent-primary);
+  background: var(--glass-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.checkbox-filter input[type="checkbox"]:hover {
+  border-color: var(--accent-primary);
+}
+
+.checkbox-filter input[type="checkbox"]:checked {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='8' viewBox='0 0 10 8'><path d='M1 4l2.5 2.5L9 1' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 .checkbox-filter:hover {
   color: var(--text-primary);
+}
+
+/* Compact variant: checkboxes inside the filter menu panel */
+.checkbox-filter-compact {
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.checkbox-filter-compact input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+}
+
+/* Dropdown filter menu next to the search bar */
+.filter-menu {
+  position: relative;
+}
+
+.filter-menu-btn {
+  padding: 0.45rem 0.75rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.filter-menu-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.filter-menu-btn-active {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.filter-menu-arrow {
+  font-size: 0.7rem;
+  margin-left: 0.2rem;
+}
+
+.filter-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 150px;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.filter-menu-option {
+  padding-top: 0;
+}
+
+.filter-menu-ok {
+  align-self: flex-end;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.8rem;
 }
 
 /* Stats Grid */
@@ -644,6 +775,12 @@ input[type="text"]::placeholder {
   margin-left: 0.4rem;
 }
 
+/* Card titles are flex with a gap: drop the badge's own margin so the
+   title -> badge spacing matches inline labels elsewhere */
+.card h2 .help-badge {
+  margin-left: 0;
+}
+
 .help-badge:hover {
   color: var(--text-primary);
   border-color: var(--accent-primary);
@@ -692,7 +829,9 @@ input[type="text"]::placeholder {
   text-align: right;
 }
 
-/* Tooltip positioned to the right with multiline support */
+/* Tooltip positioned to the right with multiline support.
+   content-box is required with width: max-content: under the global
+   border-box rule the bubble gets padding-wide dead space on the right. */
 .help-badge.tooltip-right::after {
   left: calc(100% + 10px);
   bottom: auto;
@@ -701,6 +840,7 @@ input[type="text"]::placeholder {
   white-space: pre;
   text-align: left;
   width: max-content;
+  box-sizing: content-box;
 }
 
 /* Collections */
@@ -926,12 +1066,6 @@ input[type="text"]::placeholder {
 }
 
 /* Filter management */
-.filter-hint {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  margin-bottom: 0.75rem;
-}
-
 .filter-add {
   display: flex;
   gap: 0.5rem;
@@ -956,6 +1090,41 @@ input[type="text"]::placeholder {
   overflow-y: auto;
   margin-bottom: 1rem;
   padding-right: 0.5rem;
+}
+
+/* Per-filter match counts; 0 = dead filter. The chip text flexes, so the
+   count sits right-aligned with breathing room before the remove cross */
+.filter-count {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin: 0 0.6rem 0 0.5rem;
+  white-space: nowrap;
+}
+
+.filter-count-zero {
+  color: var(--error);
+}
+
+/* Two side-by-side lists: exclusions | inclusions */
+.filter-columns {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.filter-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-column h3 {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
 }
 
 .filter-list::-webkit-scrollbar {
@@ -996,6 +1165,9 @@ input[type="text"]::placeholder {
   font-family: 'SF Mono', 'Monaco', monospace;
   font-size: 0.85rem;
   color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
 }
 
 .filter-delete {
@@ -1190,6 +1362,24 @@ input[type="text"]::placeholder {
   text-overflow: ellipsis;
   max-width: 100%;
   min-height: 1.2em;
+}
+
+.progress-icon.error {
+  color: var(--error);
+}
+
+.progress-error {
+  color: var(--error);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 1rem;
+  word-break: break-word;
+  max-width: 360px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 .progress-icon.success {

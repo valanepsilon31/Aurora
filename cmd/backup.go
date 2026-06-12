@@ -19,11 +19,15 @@ var backupCmd = &cobra.Command{
 
 func init() {
 	backupCmd.Flags().BoolP("validate", "v", false, "display list of mods to backup only")
-	backupCmd.Flags().IntP("thread", "t", 1, "compress folders concurrently")
+	backupCmd.Flags().IntP("threads", "t", 1, "compress folders concurrently")
 }
 
 func runBackupCmd(cmd *cobra.Command, args []string) {
-	app := aurora.New()
+	app, err := aurora.New()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load configuration: %v\n", err)
+		os.Exit(1)
+	}
 	if !app.IsConfigValid() {
 		cfg := app.GetConfig()
 		fmt.Fprintf(os.Stderr, "Configuration is not valid:\n")
@@ -39,13 +43,17 @@ func runBackupCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	thread, err := cmd.Flags().GetInt("thread")
+	thread, err := cmd.Flags().GetInt("threads")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading thread flag: %v\n", err)
 		return
 	}
 
-	validation := app.ValidateBackup()
+	validation, err := app.ValidateBackup()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to validate backup: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Display table
 	data := [][]string{
@@ -53,9 +61,12 @@ func runBackupCmd(cmd *cobra.Command, args []string) {
 	}
 	for _, item := range validation.Items {
 		collections := ""
-		if item.IsFiltered {
-			collections = fmt.Sprintf("Filtered by: %s", item.FilteredBy)
-		} else {
+		switch {
+		case item.IsFiltered:
+			collections = fmt.Sprintf("Filter exclusion: %s", item.FilteredBy)
+		case item.IsIncluded:
+			collections = fmt.Sprintf("Filter inclusion: %s", item.IncludedBy)
+		default:
 			collections = abbreviatePath(strings.Join(item.Mod.Collections, ", "), 100)
 		}
 		row := []string{item.Mod.Name, collections, item.Mod.SizeHuman}
@@ -85,13 +96,17 @@ func runBackupCmd(cmd *cobra.Command, args []string) {
 		thread = 1
 	}
 
-	folders := app.GetBackupFolders()
+	folders, err := app.GetBackupFolders()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to collect mods: %v\n", err)
+		os.Exit(1)
+	}
 	if len(folders) == 0 {
 		fmt.Fprintf(os.Stderr, "No mods to backup\n")
 		return
 	}
 
-	opts := aurora.NewBackupOptions(folders, thread, false)
+	opts := aurora.NewBackupOptions(folders, thread, app.GetCompression(), app.GetConfig().OutputPath, false)
 
 	progressCb, progress := compress.ProgressBarCallback()
 	result, err := compress.Compress(opts, progressCb)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 
 // Wails runtime bindings
 declare global {
@@ -8,11 +8,16 @@ declare global {
         App: {
           GetConfig: () => Promise<ConfigResult>
           ReloadConfig: () => Promise<ConfigResult>
-          UpdateConfig: (penumbraPath: string, modsPath: string) => Promise<void>
+          UpdateConfig: (penumbraPath: string, modsPath: string, outputPath: string) => Promise<void>
           IsConfigValid: () => Promise<boolean>
           AddFilter: (filter: string) => Promise<void>
           RemoveFilter: (filter: string) => Promise<void>
+          AddInclusion: (inclusion: string) => Promise<void>
+          RemoveInclusion: (inclusion: string) => Promise<void>
           SetConcurrency: (concurrency: number) => Promise<void>
+          SetCompression: (compression: string) => Promise<void>
+          GetFilterMatches: () => Promise<FilterMatches>
+          OpenOutputFolder: () => Promise<void>
           GetCollections: () => Promise<CollectionsResult>
           ValidateBackup: () => Promise<BackupValidation>
           RunBackup: (threads: number) => Promise<BackupResult>
@@ -31,13 +36,22 @@ declare global {
 interface ConfigResult {
   penumbraPath: string
   modsPath: string
+  outputPath: string
   filters: string[]
+  inclusions: string[]
   concurrency: number
+  compression: string
   status: {
     valid: boolean
     penumbraStatus: string
     modsStatus: string
+    outputStatus: string
   }
+}
+
+interface FilterMatches {
+  filters: Record<string, number>
+  inclusions: Record<string, number>
 }
 
 interface Mod {
@@ -74,6 +88,8 @@ interface BackupItem {
   mod: Mod
   filteredBy: string
   isFiltered: boolean
+  includedBy: string
+  isIncluded: boolean
 }
 
 interface BackupValidation {
@@ -114,12 +130,14 @@ function App() {
   // Config form state
   const [penumbraPath, setPenumbraPath] = useState('')
   const [modsPath, setModsPath] = useState('')
+  const [outputPath, setOutputPath] = useState('')
   const [isEditing, setIsEditing] = useState(false)
 
   // Backup state
   const [backupRunning, setBackupRunning] = useState(false)
   const [backupProgress, setBackupProgress] = useState<BackupProgress | null>(null)
   const [backupResult, setBackupResult] = useState<BackupResult | null>(null)
+  const [backupError, setBackupError] = useState<string | null>(null)
 
   // Expanded collections
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set())
@@ -138,6 +156,9 @@ function App() {
       const unsubscribe = window.runtime.EventsOn('backup:progress', (data) => {
         const progress = data as BackupProgress
         setBackupProgress(progress)
+        if (progress.error) {
+          setBackupError(progress.error)
+        }
         if (progress.done) {
           setBackupRunning(false)
         }
@@ -148,6 +169,8 @@ function App() {
 
   useEffect(() => {
     if (activeTab === 'config' && config?.status.valid && !collections) {
+      // The filter autocomplete (mod/collection suggestions) is built from
+      // collections data, so the Config tab needs it too — but cached
       loadCollections()
     } else if (activeTab === 'collections' && config?.status.valid) {
       loadCollections()
@@ -166,6 +189,7 @@ function App() {
       setConfig(cfg)
       setPenumbraPath(cfg.penumbraPath)
       setModsPath(cfg.modsPath)
+      setOutputPath(cfg.outputPath)
       // Clear collections cache when config changes to force refresh
       if (reload) {
         setCollections(null)
@@ -182,7 +206,7 @@ function App() {
     try {
       setLoading(true)
       setError(null)
-      await window.go.main.App.UpdateConfig(penumbraPath, modsPath)
+      await window.go.main.App.UpdateConfig(penumbraPath, modsPath, outputPath)
       await loadConfig(true) // Reload from disk after save
       setIsEditing(false)
     } catch (err) {
@@ -226,14 +250,14 @@ function App() {
       setShowBackupModal(true)
       setError(null)
       setBackupResult(null)
+      setBackupError(null)
       setBackupProgress({ percent: 0, current: 'Starting...', done: false })
       const result = await window.go.main.App.RunBackup(config?.concurrency ?? 0)
       setBackupResult(result)
       setBackupProgress({ percent: 100, current: 'Complete!', done: true })
     } catch (err) {
-      setError(`Backup failed: ${err}`)
-      setShowBackupModal(false)
-      setBackupProgress(null)
+      // Keep the modal open and show the error there
+      setBackupError(String(err))
     } finally {
       setBackupRunning(false)
     }
@@ -242,7 +266,18 @@ function App() {
   const closeBackupModal = () => {
     setShowBackupModal(false)
     setBackupProgress(null)
+    setBackupError(null)
   }
+
+  // Escape closes the backup modal once it is no longer running
+  useEffect(() => {
+    if (!showBackupModal || backupRunning) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeBackupModal()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showBackupModal, backupRunning])
 
   const toggleCollection = (name: string) => {
     const newExpanded = new Set(expandedCollections)
@@ -260,7 +295,33 @@ function App() {
       {showBackupModal && (
         <div className="overlay">
           <div className="progress-modal">
-            {backupRunning ? (
+            {backupResult ? (
+              <>
+                <div className="progress-icon success">✓</div>
+                <h3 className="progress-title">Backup Complete</h3>
+                <div className="result-summary">
+                  <div className="result-row">
+                    <span className="result-label">File</span>
+                    <span className="result-value">{backupResult.outputPath}</span>
+                  </div>
+                  <div className="result-row">
+                    <span className="result-label">Compression</span>
+                    <span className="result-value">{backupResult.ratio}</span>
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-secondary" onClick={() => window.go.main.App.OpenOutputFolder()}>Open folder</button>
+                  <button className="btn" onClick={closeBackupModal}>OK</button>
+                </div>
+              </>
+            ) : backupError ? (
+              <>
+                <div className="progress-icon error">⚠</div>
+                <h3 className="progress-title">Backup Failed</h3>
+                <p className="progress-error">{backupError}</p>
+                <button className="btn" onClick={closeBackupModal}>Close</button>
+              </>
+            ) : (
               <>
                 <div className="progress-icon">📦</div>
                 <h3 className="progress-title">Creating Backup</h3>
@@ -276,23 +337,7 @@ function App() {
                 <div className="progress-percent">{Math.round(backupProgress?.percent || 0)}%</div>
                 <p className="progress-status">{backupProgress?.current || 'Processing...'}</p>
               </>
-            ) : backupResult ? (
-              <>
-                <div className="progress-icon success">✓</div>
-                <h3 className="progress-title">Backup Complete</h3>
-                <div className="result-summary">
-                  <div className="result-row">
-                    <span className="result-label">File</span>
-                    <span className="result-value">{backupResult.outputPath}</span>
-                  </div>
-                  <div className="result-row">
-                    <span className="result-label">Compression</span>
-                    <span className="result-value">{backupResult.ratio}</span>
-                  </div>
-                </div>
-                <button className="btn" onClick={closeBackupModal}>OK</button>
-              </>
-            ) : null}
+            )}
           </div>
         </div>
       )}
@@ -353,28 +398,44 @@ function App() {
             isEditing={isEditing}
             penumbraPath={penumbraPath}
             modsPath={modsPath}
+            outputPath={outputPath}
             filterSuggestions={[...new Set([
               ...(collections?.collections.map(c => c.name) || []),
               ...(collections?.mods.map(m => m.name) || [])
             ])]}
             setPenumbraPath={setPenumbraPath}
             setModsPath={setModsPath}
+            setOutputPath={setOutputPath}
             setIsEditing={setIsEditing}
             saveConfig={saveConfig}
             reloadConfig={() => loadConfig(true)}
             addFilter={async (filter) => {
               await window.go.main.App.AddFilter(filter)
-              await loadConfig(true)
+              await loadConfig() // no reload: keeps the collections cache (autocomplete)
               setBackup(null)
             }}
             removeFilter={async (filter) => {
               await window.go.main.App.RemoveFilter(filter)
-              await loadConfig(true)
+              await loadConfig() // no reload: keeps the collections cache (autocomplete)
+              setBackup(null)
+            }}
+            addInclusion={async (inclusion) => {
+              await window.go.main.App.AddInclusion(inclusion)
+              await loadConfig() // no reload: keeps the collections cache (autocomplete)
+              setBackup(null)
+            }}
+            removeInclusion={async (inclusion) => {
+              await window.go.main.App.RemoveInclusion(inclusion)
+              await loadConfig() // no reload: keeps the collections cache (autocomplete)
               setBackup(null)
             }}
             setConcurrency={async (concurrency) => {
               await window.go.main.App.SetConcurrency(concurrency)
-              await loadConfig(true)
+              await loadConfig()
+            }}
+            setCompression={async (compression) => {
+              await window.go.main.App.SetCompression(compression)
+              await loadConfig()
             }}
           />
         )}
@@ -407,15 +468,20 @@ interface ConfigTabProps {
   isEditing: boolean
   penumbraPath: string
   modsPath: string
+  outputPath: string
   filterSuggestions: string[]
   setPenumbraPath: (path: string) => void
   setModsPath: (path: string) => void
+  setOutputPath: (path: string) => void
   setIsEditing: (editing: boolean) => void
   saveConfig: () => void
   reloadConfig: () => void
   addFilter: (filter: string) => Promise<void>
   removeFilter: (filter: string) => Promise<void>
+  addInclusion: (inclusion: string) => Promise<void>
+  removeInclusion: (inclusion: string) => Promise<void>
   setConcurrency: (concurrency: number) => Promise<void>
+  setCompression: (compression: string) => Promise<void>
 }
 
 function ConfigTab({
@@ -424,18 +490,49 @@ function ConfigTab({
   isEditing,
   penumbraPath,
   modsPath,
+  outputPath,
   filterSuggestions,
   setPenumbraPath,
   setModsPath,
+  setOutputPath,
   setIsEditing,
   saveConfig,
   reloadConfig,
   addFilter,
   removeFilter,
+  addInclusion,
+  removeInclusion,
   setConcurrency,
+  setCompression,
 }: ConfigTabProps) {
   const [newFilter, setNewFilter] = useState('')
+  const [filterMatches, setFilterMatches] = useState<FilterMatches | null>(null)
+
+  // Suggestions matching the typed text, capped: mounting the full
+  // mod/collection list (1000+ options) freezes the webview's datalist popup
+  const visibleSuggestions = useMemo(() => {
+    const query = newFilter.trim().toLowerCase()
+    if (!query) return []
+    return filterSuggestions
+      .filter((name) => name.toLowerCase().includes(query))
+      .slice(0, 20)
+  }, [newFilter, filterSuggestions])
   const [concurrencyValue, setConcurrencyValue] = useState(config?.concurrency ?? 0)
+
+  // Load per-filter match counts (a 0 means a dead filter). Silent on
+  // failure: counts are a hint, not required for the page to work.
+  useEffect(() => {
+    if (!config?.status.valid) {
+      setFilterMatches(null)
+      return
+    }
+    let cancelled = false
+    window.go.main.App.GetFilterMatches()
+      .then((m) => { if (!cancelled) setFilterMatches(m) })
+      .catch(() => { if (!cancelled) setFilterMatches(null) })
+    return () => { cancelled = true }
+  }, [config?.status.valid, config?.filters, config?.inclusions])
+  const [compressionValue, setCompressionValue] = useState(config?.compression ?? 'normal')
 
   // Sync concurrency value when config loads
   useEffect(() => {
@@ -444,9 +541,21 @@ function ConfigTab({
     }
   }, [config?.concurrency])
 
+  // Sync compression value when config loads
+  useEffect(() => {
+    if (config) {
+      setCompressionValue(config.compression || 'normal')
+    }
+  }, [config?.compression])
+
   const handleConcurrencyChange = async (value: number) => {
     setConcurrencyValue(value)
     await setConcurrency(value)
+  }
+
+  const handleCompressionChange = async (value: string) => {
+    setCompressionValue(value)
+    await setCompression(value)
   }
 
   const handleAddFilter = async () => {
@@ -456,6 +565,14 @@ function ConfigTab({
     }
   }
 
+  const handleAddInclusion = async () => {
+    if (newFilter.trim()) {
+      await addInclusion(newFilter.trim())
+      setNewFilter('')
+    }
+  }
+
+  // Enter adds an exclusion (the most common case); inclusion via its button
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleAddFilter()
@@ -511,6 +628,25 @@ function ConfigTab({
                 📁
               </button>
             </div>
+            <div className="field-label" style={{ marginBottom: '0.5rem' }}>Backup Output Path (empty = app folder)</div>
+            <div className="input-with-browse">
+              <input
+                type="text"
+                value={outputPath}
+                onChange={(e) => setOutputPath(e.target.value)}
+                placeholder="Where backup archives are written"
+              />
+              <button
+                className="browse-btn"
+                onClick={async () => {
+                  const path = await window.go.main.App.BrowseDirectory('Select Backup Output Folder', outputPath)
+                  if (path) setOutputPath(path)
+                }}
+                title="Browse..."
+              >
+                📁
+              </button>
+            </div>
             <div className="actions">
               <button className="btn" onClick={saveConfig} disabled={loading}>
                 Save Changes
@@ -522,30 +658,41 @@ function ConfigTab({
           </>
         ) : (
           <>
-            <div className="field">
-              <span className="field-label">Penumbra</span>
-              <span className="field-value field-with-status">
-                <span className="field-path">{config?.penumbraPath || '(not set)'}</span>
-                <span className={`field-status ${config?.status.penumbraStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
-                  {config?.status.penumbraStatus}
+            <div className="field field-stacked">
+              <div className="field-row">
+                <span className="field-label">Penumbra</span>
+                <span className="field-value field-with-status">
+                  <span className="field-path">{config?.penumbraPath || '(not set)'}</span>
+                  <span className={`field-status ${config?.status.penumbraStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
+                    {config?.status.penumbraStatus}
+                  </span>
                 </span>
-              </span>
-            </div>
-            <div className="field">
-              <span className="field-label">Mods</span>
-              <span className="field-value field-with-status">
-                <span className="field-path">{config?.modsPath || '(not set)'}</span>
-                <span className={`field-status ${config?.status.modsStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
-                  {config?.status.modsStatus}
+              </div>
+              <div className="field-row">
+                <span className="field-label">Mods</span>
+                <span className="field-value field-with-status">
+                  <span className="field-path">{config?.modsPath || '(not set)'}</span>
+                  <span className={`field-status ${config?.status.modsStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
+                    {config?.status.modsStatus}
+                  </span>
                 </span>
-              </span>
+              </div>
+              <div className="field-row">
+                <span className="field-label">Output</span>
+                <span className="field-value field-with-status">
+                  <span className="field-path">{config?.outputPath || '(app folder)'}</span>
+                  <span className={`field-status ${config?.status.outputStatus === 'OK' ? 'status-ok' : 'status-error'}`}>
+                    {config?.status.outputStatus}
+                  </span>
+                </span>
+              </div>
             </div>
             <div className="field">
               <span className="field-label">
                 Concurrency
                 <span className="help-badge tooltip-right" data-tooltip="Number of parallel threads for backup compression.&#10;&#10;0 = auto (uses all CPU cores).&#10;Warning: may slow down your machine significantly during backup.">?</span>
               </span>
-              <span className="field-value">
+              <span className="field-value field-inline">
                 <input
                   type="number"
                   min="0"
@@ -554,7 +701,18 @@ function ConfigTab({
                   onChange={(e) => handleConcurrencyChange(parseInt(e.target.value) || 0)}
                   className="concurrency-input"
                 />
-                
+                <span className="field-label">
+                  Compression
+                  <span className="help-badge tooltip-right" data-tooltip="Normal: fast backups (default).&#10;Max: smallest backups, about twice as slow for ~5% smaller files.">?</span>
+                </span>
+                <select
+                  value={compressionValue}
+                  onChange={(e) => handleCompressionChange(e.target.value)}
+                  className="compression-select"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="max">Max</option>
+                </select>
               </span>
             </div>
             <div className="actions">
@@ -571,8 +729,10 @@ function ConfigTab({
 
       {config?.status.valid && (
         <div className="card card-filters">
-          <h2>Backup Filters</h2>
-          <p className="filter-hint">Mods and collections matching these patterns will be excluded from backups</p>
+          <h2>
+            Backup Filters
+            <span className="help-badge tooltip-right" data-tooltip="Filters match by prefix, case-insensitive:&#10;'shadow' matches mod 'ShadowKnight' and collection 'Shadow-Pack'.&#10;Checked against mod names, paths and collection names.">?</span>
+          </h2>
 
           <div className="filter-add">
             <input
@@ -583,30 +743,152 @@ function ConfigTab({
               placeholder="Enter filter pattern or select a mod/collection..."
               list="filter-suggestions"
             />
+            {/* Options are emptied rather than the list attribute removed:
+                the webview doesn't dismiss an already-open popup when the
+                attribute disappears. */}
             <datalist id="filter-suggestions">
-              {filterSuggestions.map((name) => (
+              {visibleSuggestions.map((name) => (
                 <option key={name} value={name} />
               ))}
             </datalist>
             <button className="btn" onClick={handleAddFilter} disabled={!newFilter.trim()}>
-              Add
+              + Exclusion
+            </button>
+            <button className="btn" onClick={handleAddInclusion} disabled={!newFilter.trim()}>
+              + Inclusion
             </button>
           </div>
 
-          <div className="filter-list">
-            {config?.filters && config.filters.length > 0 ? (
-              config.filters.map((filter) => (
-                <div key={filter} className="filter-item">
-                  <span className="filter-text">{filter}</span>
-                  <button className="filter-delete" onClick={() => removeFilter(filter)} title="Remove filter">
-                    ×
-                  </button>
-                </div>
-              ))
-            ) : (
-              <div className="filter-empty">No filters configured</div>
-            )}
+          <div className="filter-columns">
+            <div className="filter-column">
+              <h3>
+                Exclusions
+                <span className="help-badge tooltip-right" data-tooltip="Matching mods are excluded from backups,&#10;even when collections use them">?</span>
+              </h3>
+              <div className="filter-list">
+                {config?.filters && config.filters.length > 0 ? (
+                  config.filters.map((filter) => (
+                    <div key={filter} className="filter-item">
+                      <span className="filter-text">{filter}</span>
+                      {filterMatches && (
+                        <span className={`filter-count ${(filterMatches.filters[filter] ?? 0) === 0 ? 'filter-count-zero' : ''}`}>
+                          ({filterMatches.filters[filter] ?? 0})
+                        </span>
+                      )}
+                      <button className="filter-delete" onClick={() => removeFilter(filter)} title="Remove exclusion">
+                        ×
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="filter-empty">No exclusions configured</div>
+                )}
+              </div>
+            </div>
+            <div className="filter-column">
+              <h3>
+                Inclusions
+                <span className="help-badge tooltip-right" data-tooltip="Matching mods are always backed up, overriding&#10;exclusions and missing collections">?</span>
+              </h3>
+              <div className="filter-list">
+                {config?.inclusions && config.inclusions.length > 0 ? (
+                  config.inclusions.map((inclusion) => (
+                    <div key={inclusion} className="filter-item">
+                      <span className="filter-text">{inclusion}</span>
+                      {filterMatches && (
+                        <span className={`filter-count ${(filterMatches.inclusions[inclusion] ?? 0) === 0 ? 'filter-count-zero' : ''}`}>
+                          ({filterMatches.inclusions[inclusion] ?? 0})
+                        </span>
+                      )}
+                      <button className="filter-delete" onClick={() => removeInclusion(inclusion)} title="Remove inclusion">
+                        ×
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="filter-empty">No inclusions configured</div>
+                )}
+              </div>
+            </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Dropdown filter menu: a button showing the active filter count, opening a
+// panel of checkboxes. Selections apply immediately; OK or clicking outside
+// closes the panel.
+interface FilterOption {
+  id: string
+  label: string
+}
+
+interface FilterMenuProps {
+  options: FilterOption[]
+  active: Set<string>
+  onChange: (next: Set<string>) => void
+}
+
+function FilterMenu({ options, active, onChange }: FilterMenuProps) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close when clicking outside the menu or pressing Escape
+  useEffect(() => {
+    if (!open) return
+    const onClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const toggle = (id: string) => {
+    const next = new Set(active)
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
+    onChange(next)
+  }
+
+  const label = active.size === 0 ? 'Filters' : `${active.size} filter${active.size > 1 ? 's' : ''}`
+
+  return (
+    <div className="filter-menu" ref={ref}>
+      <button
+        className={`filter-menu-btn ${active.size > 0 ? 'filter-menu-btn-active' : ''}`}
+        onClick={() => setOpen(!open)}
+      >
+        {label} <span className="filter-menu-arrow">▾</span>
+      </button>
+      {open && (
+        <div className="filter-menu-panel">
+          {options.map((opt) => (
+            <label key={opt.id} className="checkbox-filter checkbox-filter-compact filter-menu-option">
+              <input
+                type="checkbox"
+                checked={active.has(opt.id)}
+                onChange={() => toggle(opt.id)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+          <button className="btn filter-menu-ok" onClick={() => setOpen(false)}>
+            OK
+          </button>
         </div>
       )}
     </div>
@@ -749,16 +1031,19 @@ interface BackupTabProps {
 
 function BackupTab({ backup, loading, backupRunning, runBackup }: BackupTabProps) {
   const [search, setSearch] = useState('')
-  const [showFilteredOnly, setShowFilteredOnly] = useState(false)
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
 
   const filteredItems = useMemo(() => {
     if (!backup) return []
 
     let items = backup.items
 
-    // Filter by checkbox
-    if (showFilteredOnly) {
-      items = items.filter(item => item.isFiltered)
+    // Filter menu (selected = keep matching items; several = union)
+    if (activeFilters.size > 0) {
+      items = items.filter(item =>
+        (activeFilters.has('exclusions') && item.isFiltered) ||
+        (activeFilters.has('inclusions') && item.isIncluded)
+      )
     }
 
     // Filter by search
@@ -770,7 +1055,7 @@ function BackupTab({ backup, loading, backupRunning, runBackup }: BackupTabProps
     }
 
     return items
-  }, [backup, search, showFilteredOnly])
+  }, [backup, search, activeFilters])
 
   if (loading && !backup) {
     return <div className="loading">Loading backup info...</div>
@@ -791,7 +1076,7 @@ function BackupTab({ backup, loading, backupRunning, runBackup }: BackupTabProps
           <div className="stat-value">{backup.items.length}</div>
           <div className="stat-label">
             Total Used Mods
-            <span className="help-badge" data-tooltip="Mods in at least one collection">?</span>
+            <span className="help-badge" data-tooltip="Mods in at least one collection, or matched by an inclusion filter">?</span>
           </div>
         </div>
         <div className="stat-card">
@@ -805,7 +1090,7 @@ function BackupTab({ backup, loading, backupRunning, runBackup }: BackupTabProps
           <div className="stat-value">{filteredCount}</div>
           <div className="stat-label">
             Filtered
-            <span className="help-badge tooltip-left" data-tooltip="Mods excluded by your filters">?</span>
+            <span className="help-badge tooltip-left" data-tooltip="Mods excluded by your exclusion filters">?</span>
           </div>
         </div>
         <div className={`stat-card ${!backup.hasEnoughSpace ? 'stat-card-warning' : ''}`}>
@@ -827,21 +1112,22 @@ function BackupTab({ backup, loading, backupRunning, runBackup }: BackupTabProps
             resultCount={filteredItems.length}
             totalCount={backup.items.length}
           />
-          <label className="checkbox-filter">
-            <input
-              type="checkbox"
-              checked={showFilteredOnly}
-              onChange={(e) => setShowFilteredOnly(e.target.checked)}
-            />
-            <span>Show filtered only</span>
-          </label>
+          <FilterMenu
+            options={[
+              { id: 'exclusions', label: 'Exclusions' },
+              { id: 'inclusions', label: 'Inclusions' },
+            ]}
+            active={activeFilters}
+            onChange={setActiveFilters}
+          />
         </div>
         <div className="backup-list">
           {filteredItems.map((item, index) => (
             <div key={item.mod.path || index} className={`backup-item ${item.isFiltered ? 'filtered' : ''}`}>
               <span className="mod-name">
                 {item.mod.name}
-                {item.isFiltered && <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>(filtered: {item.filteredBy})</span>}
+                {item.isFiltered && <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>(filter exclusion: {item.filteredBy})</span>}
+                {!item.isFiltered && item.isIncluded && <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>(filter inclusion: {item.includedBy})</span>}
               </span>
               <span className="mod-size">{item.mod.sizeHuman}</span>
             </div>

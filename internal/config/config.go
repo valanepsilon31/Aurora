@@ -5,7 +5,7 @@ import (
 	"aurora/internal/util"
 	"encoding/json"
 	"errors"
-	"log"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -24,8 +24,11 @@ func getConfigPath() string {
 type Config struct {
 	Penumbra    PenumbraConfig
 	Mods        ModsConfig
-	Filters     []string `json:"filters"`
+	Filters     []string `json:"filters"`    // Exclusions: matching mods are dropped from backups
+	Inclusions  []string `json:"inclusions"` // Matching mods are always backed up (wins over exclusions and missing collections)
 	Concurrency int      `json:"concurrency"`
+	Compression string   `json:"compression"` // "normal" (default) or "max"
+	Output      string   `json:"output"`      // Backup output directory ("" = current working directory)
 }
 
 type PenumbraConfig struct {
@@ -40,37 +43,44 @@ type ConfigStatus struct {
 	Valid    bool
 	Penumbra string
 	Mods     string
+	Output   string
 }
 
-func NewConfig(reset bool) *Config {
-	createIfMissing(reset)
+func NewConfig(reset bool) (*Config, error) {
+	if err := createIfMissing(reset); err != nil {
+		return nil, err
+	}
 	var config Config
 
 	if err := util.ReadJSONFile(ConfigFile, &config); err != nil {
 		logger.Error("Failed to read config file: %v", err)
-		log.Fatalf("Failed to read config file: %v", err)
+		return nil, fmt.Errorf("read config file %s: %w", ConfigFile, err)
 	}
 
 	logger.Info("Config loaded: penumbra=%s, mods=%s", config.Penumbra.Path, config.Mods.Path)
-	return &config
+	return &config, nil
 }
 
-func createIfMissing(reset bool) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		homeDir = "C:\\Users\\<user>"
+func createIfMissing(reset bool) error {
+	// Default Penumbra path only when the home directory is known;
+	// an empty path is reported by validation and fixable in the UI
+	defaultPenumbra := ""
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		defaultPenumbra = filepath.Join(homeDir, "AppData", "Roaming", "XIVLauncher", "pluginConfigs", "Penumbra")
 	}
 	if _, err := os.Stat(ConfigFile); errors.Is(err, os.ErrNotExist) || reset {
 		config := Config{
 			Penumbra: PenumbraConfig{
-				Path: filepath.Join(homeDir, "AppData", "Roaming", "XIVLauncher", "pluginConfigs", "Penumbra"),
+				Path: defaultPenumbra,
 			},
 			Mods: ModsConfig{
 				Path: "",
 			},
+			Compression: "normal",
 		}
-		config.Save()
+		return config.Save()
 	}
+	return nil
 }
 
 func (c *Config) Status() ConfigStatus {
@@ -78,6 +88,16 @@ func (c *Config) Status() ConfigStatus {
 		Valid:    true,
 		Penumbra: "OK",
 		Mods:     "OK",
+		Output:   "OK",
+	}
+
+	// Output dir is optional ("" = current working directory)
+	if c.Output != "" {
+		if fileInfo, err := os.Stat(c.Output); err != nil || !fileInfo.IsDir() {
+			status.Output = "Invalid output path"
+			status.Valid = false
+			logger.Warn("Invalid output path: %s", c.Output)
+		}
 	}
 
 	fileInfo, err := os.Stat(c.Penumbra.Path)
@@ -128,16 +148,19 @@ func hasModFolders(modsPath string) bool {
 	return false
 }
 
-func (c *Config) Save() {
+func (c *Config) Save() error {
 	file, err := os.Create(ConfigFile)
 	if err != nil {
-		log.Fatalf("Failed to create config file: %v", err)
+		logger.Error("Failed to create config file: %v", err)
+		return fmt.Errorf("create config file %s: %w", ConfigFile, err)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(c); err != nil {
-		log.Fatalf("Failed to write default config to file: %v", err)
+		logger.Error("Failed to write config file: %v", err)
+		return fmt.Errorf("write config file %s: %w", ConfigFile, err)
 	}
+	return nil
 }

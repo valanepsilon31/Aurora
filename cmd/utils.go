@@ -17,6 +17,10 @@ func abbreviatePath(path string, maxLength int) string {
 func prompt(prompt string) string {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf("%s: ", prompt)
-	input, _ := reader.ReadString('\n')
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\nFailed to read input: %v\n", err)
+		os.Exit(1)
+	}
 	return strings.TrimSpace(input)
 }

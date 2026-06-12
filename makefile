@@ -17,22 +17,21 @@ all: build
 build: install
 	go build -trimpath -ldflags=$(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd
 
-# Build all common platforms
+# Build release platforms: one CLI per supported platform, matching the
+# desktop matrix (windows/amd64, linux/amd64, darwin/arm64). Keep this list
+# short on purpose - more binaries on the release page confuse users.
 build-all: install
-	mkdir -p dist/linux-amd64 dist/linux-arm64 dist/darwin-amd64 dist/darwin-arm64 dist/windows-amd64
+	rm -rf dist
+	mkdir -p dist/linux-amd64 dist/darwin-arm64 dist/windows-amd64
 	GOOS=linux   GOARCH=amd64    go build -trimpath -ldflags=$(LDFLAGS) -o dist/linux-amd64/$(BINARY_NAME)      ./cmd
-	GOOS=linux   GOARCH=arm64    go build -trimpath -ldflags=$(LDFLAGS) -o dist/linux-arm64/$(BINARY_NAME)      ./cmd
-	GOOS=darwin  GOARCH=amd64    go build -trimpath -ldflags=$(LDFLAGS) -o dist/darwin-amd64/$(BINARY_NAME)     ./cmd
 	GOOS=darwin  GOARCH=arm64    go build -trimpath -ldflags=$(LDFLAGS) -o dist/darwin-arm64/$(BINARY_NAME)     ./cmd
 	GOOS=windows GOARCH=amd64    go build -trimpath -ldflags=$(LDFLAGS) -o dist/windows-amd64/$(BINARY_NAME).exe ./cmd
 	@echo "✓ Binaries built successfully in dist/"
 	@echo "  Creating compressed archives..."
-	@cd dist && tar -czf $(BINARY_NAME)-linux-amd64.tar.gz   -C linux-amd64   $(BINARY_NAME)     && echo "  - $(BINARY_NAME)-linux-amd64.tar.gz"
-	@cd dist && tar -czf $(BINARY_NAME)-linux-arm64.tar.gz   -C linux-arm64   $(BINARY_NAME)     && echo "  - $(BINARY_NAME)-linux-arm64.tar.gz"
-	@cd dist && tar -czf $(BINARY_NAME)-darwin-amd64.tar.gz  -C darwin-amd64  $(BINARY_NAME)     && echo "  - $(BINARY_NAME)-darwin-amd64.tar.gz"
-	@cd dist && tar -czf $(BINARY_NAME)-darwin-arm64.tar.gz  -C darwin-arm64  $(BINARY_NAME)     && echo "  - $(BINARY_NAME)-darwin-arm64.tar.gz"
-	@cd dist && zip -q $(BINARY_NAME)-windows-amd64.zip      -j windows-amd64/$(BINARY_NAME).exe && echo "  - $(BINARY_NAME)-windows-amd64.zip"
-	@rm -rf dist/linux-amd64 dist/linux-arm64 dist/darwin-amd64 dist/darwin-arm64 dist/windows-amd64
+	@cd dist && tar -czf $(BINARY_NAME)-cli-linux-amd64.tar.gz   -C linux-amd64   $(BINARY_NAME)     && echo "  - $(BINARY_NAME)-cli-linux-amd64.tar.gz"
+	@cd dist && tar -czf $(BINARY_NAME)-cli-darwin-arm64.tar.gz  -C darwin-arm64  $(BINARY_NAME)     && echo "  - $(BINARY_NAME)-cli-darwin-arm64.tar.gz"
+	@cd dist && zip -q $(BINARY_NAME)-cli-windows-amd64.zip      -j windows-amd64/$(BINARY_NAME).exe && echo "  - $(BINARY_NAME)-cli-windows-amd64.zip"
+	@rm -rf dist/linux-amd64 dist/darwin-arm64 dist/windows-amd64
 	@echo "✓ Compressed archives created"
 
 clean:

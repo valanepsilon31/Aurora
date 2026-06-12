@@ -19,7 +19,11 @@ var penumbraCmd = &cobra.Command{
 }
 
 func runPenumbraCmd(cmd *cobra.Command, args []string) {
-	app := aurora.New()
+	app, err := aurora.New()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load configuration: %v\n", err)
+		os.Exit(1)
+	}
 	if !app.IsConfigValid() {
 		cfg := app.GetConfig()
 		fmt.Fprintf(os.Stderr, "Configuration is not valid:\n")
@@ -29,7 +33,11 @@ func runPenumbraCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	result := app.GetCollections()
+	result, err := app.GetCollections()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to read penumbra data: %v\n", err)
+		os.Exit(1)
+	}
 
 	data := [][]string{
 		{"Collection", "Mods"},

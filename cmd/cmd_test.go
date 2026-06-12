@@ -19,14 +19,14 @@ func TestCommandFlagsIsolation(t *testing.T) {
 		{
 			name:     "backup command flags",
 			cmd:      backupCmd,
-			flags:    []string{"validate", "thread"},
+			flags:    []string{"validate", "threads"},
 			badFlags: []string{"reset"}, // belongs to config command
 		},
 		{
 			name:     "config command flags",
 			cmd:      configCmd,
 			flags:    []string{"reset"},
-			badFlags: []string{"validate", "thread"}, // belongs to backup command
+			badFlags: []string{"validate", "threads"}, // belongs to backup command
 		},
 		{
 			name:     "penumbra command flags",
@@ -95,7 +95,7 @@ func TestBackupFlagAccess(t *testing.T) {
 		t.Errorf("backup command should be able to access 'validate' flag: %v", err)
 	}
 
-	_, err = cmd.Flags().GetInt("thread")
+	_, err = cmd.Flags().GetInt("threads")
 	if err != nil {
 		t.Errorf("backup command should be able to access 'thread' flag: %v", err)
 	}

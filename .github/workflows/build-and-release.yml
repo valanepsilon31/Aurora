@@ -1,9 +1,12 @@
 name: Build and Release
 
+# Release set is deliberately small (mist-drive style): one CLI + one
+# desktop UI per platform — windows/amd64, linux/amd64, darwin/arm64.
 on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -53,6 +56,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: test
     strategy:
+      # Keep other legs running if one platform breaks
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest

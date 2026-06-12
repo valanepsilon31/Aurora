@@ -4,8 +4,8 @@ import (
 	"aurora/internal/config"
 	"aurora/internal/logger"
 	"aurora/internal/util"
+	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -19,9 +19,9 @@ type PenumbraRepository struct {
 }
 
 type PenumbraStats struct {
-	TotalDiskSize           uint64
-	TotalUsedModsDiskSize   uint64
-	ModsWithCollectionCount int
+	TotalDiskSize         uint64
+	TotalUsedModsDiskSize uint64
+	UnreferencedModsCount int // Mods no collection references
 }
 
 type PenumbraMod struct {
@@ -47,37 +47,45 @@ type collectionSettings struct {
 
 const collectionsFolder = "collections"
 
-func NewPenumbraRepository(config *config.Config) *PenumbraRepository {
-	mods := loadMods(config)
+func NewPenumbraRepository(config *config.Config) (*PenumbraRepository, error) {
+	mods, err := loadMods(config)
+	if err != nil {
+		return nil, err
+	}
+	collections, err := loadCollections(mods, config)
+	if err != nil {
+		return nil, err
+	}
 	repo := PenumbraRepository{
 		path:        config.Penumbra.Path,
 		Mods:        mods,
-		Collections: loadCollections(mods, config),
+		Collections: collections,
 		Stats:       PenumbraStats{},
 	}
 	for i, mod := range mods {
 		repo.Stats.TotalDiskSize += mod.Size
-		for _, col := range repo.Collections {
+		for ci := range repo.Collections {
+			col := &repo.Collections[ci]
 			for _, colMod := range col.Mods {
 				if mod.Name == colMod.Name {
-					mods[i].Collections = append(mods[i].Collections, &col)
+					mods[i].Collections = append(mods[i].Collections, col)
 				}
 			}
 		}
 		if len(mods[i].Collections) > 0 {
 			repo.Stats.TotalUsedModsDiskSize += mod.Size
 		} else {
-			repo.Stats.ModsWithCollectionCount++
+			repo.Stats.UnreferencedModsCount++
 		}
 	}
-	return &repo
+	return &repo, nil
 }
 
-func loadMods(config *config.Config) []PenumbraMod {
+func loadMods(config *config.Config) ([]PenumbraMod, error) {
 	entries, err := os.ReadDir(config.Mods.Path)
 	if err != nil {
 		logger.Error("Failed to read mods directory: %v", err)
-		log.Fatalf("Failed to read mods directory: %v", err)
+		return nil, fmt.Errorf("read mods directory %s: %w", config.Mods.Path, err)
 	}
 
 	mods := make([]PenumbraMod, 0, len(entries))
@@ -108,15 +116,15 @@ func loadMods(config *config.Config) []PenumbraMod {
 		return 0
 	})
 
-	return mods
+	return mods, nil
 }
 
-func loadCollections(mods []PenumbraMod, config *config.Config) []PenumbraCollection {
+func loadCollections(mods []PenumbraMod, config *config.Config) ([]PenumbraCollection, error) {
 	path := filepath.Join(config.Penumbra.Path, collectionsFolder)
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		logger.Error("Failed to read penumbra collections folder: %v", err)
-		log.Fatalf("Failed to read penumbra collections folder: %v", err)
+		return nil, fmt.Errorf("read penumbra collections folder %s: %w", path, err)
 	}
 
 	collections := []PenumbraCollection{}
@@ -143,7 +151,7 @@ func loadCollections(mods []PenumbraMod, config *config.Config) []PenumbraCollec
 		}
 	}
 
-	return collections
+	return collections, nil
 }
 
 func findModByName(mods []PenumbraMod, name string) *PenumbraMod {
